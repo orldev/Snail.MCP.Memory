@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snail.MCP.Memory — long-term memory for AI agents</title>
+<meta name="description" content="An MCP server that gives AI agents universal long-term memory: typed records, semantic search, cross-project experience transfer and a knowledge graph. Local-first, SQLite or PostgreSQL.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐌</text></svg>">
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --bg-raise: #ffffff;
+    --bg-code: #14231c;
+    --bg-code-inline: #e9e5db;
+    --ink: #1d2b24;
+    --ink-soft: #55645c;
+    --ink-faint: #8a968f;
+    --line: #e0dbd0;
+    --accent: #1e7a4f;
+    --accent-soft: #e2f0e8;
+    --accent-ink: #14603c;
+    --amber: #b97f18;
+    --amber-soft: #f6ecd8;
+    --code-ink: #d7e6dd;
+    --code-comment: #6f8a7c;
+    --code-key: #8fd4ae;
+    --code-str: #e8cf8f;
+    --shadow: 0 1px 2px rgba(23, 40, 31, .06), 0 12px 32px -16px rgba(23, 40, 31, .18);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101714;
+      --bg-raise: #18211c;
+      --bg-code: #0b110e;
+      --bg-code-inline: #22302a;
+      --ink: #e6ece8;
+      --ink-soft: #a9b6af;
+      --ink-faint: #71807a;
+      --line: #263029;
+      --accent: #55c48b;
+      --accent-soft: #1b2f25;
+      --accent-ink: #7ad4a4;
+      --amber: #e0b25e;
+      --amber-soft: #2e2617;
+      --code-ink: #cfe0d6;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px -16px rgba(0, 0, 0, .5);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+  body {
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.65;
+    font-size: 16.5px;
+  }
+  code, pre, .mono {
+    font-family: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  /* ---------- top navigation ---------- */
+  nav.top {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 1.4rem;
+    padding: .8rem clamp(1rem, 4vw, 2.5rem);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.top .brand {
+    font-weight: 700; font-size: 1.02rem; color: var(--ink);
+    text-decoration: none; display: flex; align-items: center; gap: .5rem;
+    white-space: nowrap;
+  }
+  nav.top .links {
+    display: flex; gap: 1.1rem; margin-left: auto;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  nav.top .links::-webkit-scrollbar { display: none; }
+  nav.top .links a {
+    color: var(--ink-soft); text-decoration: none; font-size: .92rem;
+    white-space: nowrap; padding: .2rem 0; border-bottom: 2px solid transparent;
+  }
+  nav.top .links a:hover { color: var(--accent-ink); border-bottom-color: var(--accent); }
+  nav.top .gh {
+    margin-left: .3rem; flex: none; display: flex; align-items: center; gap: .4rem;
+    color: var(--ink); text-decoration: none; font-size: .9rem; font-weight: 600;
+    border: 1px solid var(--line); border-radius: 999px; padding: .35rem .9rem;
+    background: var(--bg-raise);
+  }
+  nav.top .gh:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+  /* ---------- layout ---------- */
+  main { max-width: 60rem; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2.5rem) 5rem; }
+  section { padding-top: 4.2rem; }
+  h2 {
+    font-size: 1.65rem; letter-spacing: -.015em; margin-bottom: 1rem;
+    display: flex; align-items: baseline; gap: .6rem;
+  }
+  h2 .no { color: var(--ink-faint); font-size: 1rem; font-weight: 600; }
+  h3 { font-size: 1.12rem; margin: 1.8rem 0 .6rem; }
+  p { margin-bottom: .9rem; }
+  p.lead { color: var(--ink-soft); max-width: 44rem; }
+  a { color: var(--accent-ink); }
+  strong { font-weight: 650; }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    max-width: 60rem; margin: 0 auto;
+    padding: clamp(3rem, 8vh, 5.5rem) clamp(1rem, 4vw, 2.5rem) 1rem;
+  }
+  .hero .snail { font-size: 3.2rem; line-height: 1; margin-bottom: 1.2rem; display: block; }
+  .hero h1 {
+    font-size: clamp(2rem, 5.5vw, 3.1rem); line-height: 1.12; letter-spacing: -.025em;
+    max-width: 46rem; margin-bottom: 1.1rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent-ink); }
+  .hero .sub { font-size: 1.15rem; color: var(--ink-soft); max-width: 42rem; margin-bottom: 1.8rem; }
+  .hero .cta { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin-bottom: 1.6rem; }
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 650; font-size: .97rem;
+    padding: .68rem 1.3rem; border-radius: 10px; border: 1px solid transparent;
+  }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: var(--shadow); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { border-color: var(--line); color: var(--ink); background: var(--bg-raise); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip {
+    font-size: .8rem; font-weight: 600; color: var(--accent-ink);
+    background: var(--accent-soft); border-radius: 999px; padding: .25rem .75rem;
+  }
+
+  /* ---------- feature cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); gap: 1rem; margin-top: 1.6rem; }
+  .card {
+    background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 1.2rem 1.3rem; box-shadow: var(--shadow);
+  }
+  .card .ico { font-size: 1.5rem; display: block; margin-bottom: .55rem; }
+  .card h4 { font-size: 1rem; margin-bottom: .35rem; }
+  .card p { font-size: .92rem; color: var(--ink-soft); margin: 0; }
+
+  /* ---------- code blocks ---------- */
+  .codebox {
+    position: relative; background: var(--bg-code); color: var(--code-ink);
+    border-radius: var(--radius); margin: 1rem 0 1.4rem; box-shadow: var(--shadow);
+    border: 1px solid color-mix(in srgb, var(--bg-code) 70%, var(--line));
+  }
+  .codebox .bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .5rem 1rem; font-size: .78rem; color: var(--code-comment);
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .codebox .bar button {
+    all: unset; cursor: pointer; font: inherit; font-weight: 600; color: var(--code-key);
+    padding: .1rem .55rem; border-radius: 6px;
+  }
+  .codebox .bar button:hover { background: rgba(255,255,255,.08); }
+  .codebox pre { overflow-x: auto; padding: 1rem 1.2rem; font-size: .86rem; line-height: 1.6; }
+  .codebox .c { color: var(--code-comment); }
+  .codebox .k { color: var(--code-key); }
+  .codebox .s { color: var(--code-str); }
+  code.inline {
+    background: var(--bg-code-inline); border-radius: 6px; padding: .1em .4em;
+    font-size: .86em; white-space: nowrap;
+  }
+
+  /* ---------- steps ---------- */
+  .step { display: grid; grid-template-columns: 2.2rem 1fr; gap: 1rem; margin-top: 1.6rem; }
+  .step .n {
+    width: 2rem; height: 2rem; border-radius: 999px; flex: none;
+    background: var(--accent-soft); color: var(--accent-ink);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .95rem;
+  }
+  .step h3 { margin-top: .15rem; }
+  .quote {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 10px 10px 0; padding: .75rem 1.1rem; margin: 1rem 0; font-style: italic;
+    color: var(--accent-ink);
+  }
+  .note {
+    background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: 10px; padding: .8rem 1.1rem; margin: 1.2rem 0; font-size: .93rem;
+  }
+  .note b { color: var(--amber); }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); margin: 1.2rem 0; background: var(--bg-raise); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .6rem .95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); background: color-mix(in srgb, var(--bg-raise) 60%, var(--bg)); }
+  tr:last-child td { border-bottom: none; }
+  td code { background: var(--bg-code-inline); border-radius: 5px; padding: .08em .35em; font-size: .84em; white-space: nowrap; }
+  td.def { color: var(--ink-faint); white-space: nowrap; }
+
+  /* ---------- kinds / graph pills ---------- */
+  .pills { display: flex; flex-wrap: wrap; gap: .45rem; margin: .8rem 0 1.2rem; }
+  .pill {
+    font-size: .84rem; font-weight: 600; padding: .28rem .8rem; border-radius: 999px;
+    background: var(--bg-raise); border: 1px solid var(--line);
+  }
+  .pill.hot { background: var(--accent-soft); border-color: transparent; color: var(--accent-ink); }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+  @media (max-width: 720px) { .twocol { grid-template-columns: 1fr; } }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 4rem;
+    padding: 2rem clamp(1rem, 4vw, 2.5rem); text-align: center;
+    color: var(--ink-faint); font-size: .9rem;
+  }
+  footer a { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <a class="brand" href="#top">🐌 Snail.MCP.Memory</a>
+  <div class="links">
+    <a href="#why">Why</a>
+    <a href="#quickstart">Quick start</a>
+    <a href="#clients">Clients</a>
+    <a href="#config">Configuration</a>
+    <a href="#tools">Tools</a>
+    <a href="#sharing">Sharing</a>
+    <a href="#notes">Notes</a>
+  </div>
+  <a class="gh" href="https://github.com/orldev/Snail.MCP.Memory">GitHub ↗</a>
+</nav>
+
+<header class="hero" id="top">
+  <span class="snail">🐌</span>
+  <h1>Your AI agent forgets everything.<br><em>This server fixes that.</em></h1>
+  <p class="sub">
+    An MCP server that gives Claude Code, Claude Desktop, VS Code — any MCP client — universal
+    long-term memory: typed records searched by meaning, experience that transfers between
+    projects, and a knowledge graph. All on your machine.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="#quickstart">Get started in 3 steps</a>
+    <a class="btn ghost" href="https://github.com/orldev/Snail.MCP.Memory">Source on GitHub</a>
+  </div>
+  <div class="badges">
+    <span class="chip">local-first</span>
+    <span class="chip">no API keys</span>
+    <span class="chip">multilingual semantic search</span>
+    <span class="chip">SQLite → PostgreSQL</span>
+    <span class="chip">.NET 10</span>
+  </div>
+</header>
+
+<main>
+
+<section id="why">
+  <h2>What changes once it is connected</h2>
+  <p class="lead">
+    The agent stops living inside a single chat. Decisions, lessons and preferences survive
+    <code class="inline">/clear</code>, survive the week-end, and — most importantly — survive the
+    jump to your next project.
+  </p>
+  <div class="cards">
+    <div class="card">
+      <span class="ico">🧠</span>
+      <h4>Memory across sessions</h4>
+      <p>Clear the chat, come back tomorrow — the agent recalls what was decided and why, from a database, not from scrollback.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🔁</span>
+      <h4>Experience transfer</h4>
+      <p>Start a new project and the server answers "where have I seen this before?" — similar past projects arrive with their lessons, so old mistakes are not repeated.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🔎</span>
+      <h4>Search by meaning</h4>
+      <p>A multilingual embedding model (e5) runs in-process. A question in Russian finds a lesson written in English. No keywords, no exact phrasing.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🧹</span>
+      <h4>Self-cleaning</h4>
+      <p>Near-duplicates are refused, short-lived events expire, stale records get nominated for review. Durable knowledge is never deleted without your confirmation.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🕸️</span>
+      <h4>Knowledge graph</h4>
+      <p>Directed, typed links between projects — uses, depends_on, implements… Symmetric "related" is never stored: vector similarity derives it on the fly.</p>
+    </div>
+    <div class="card">
+      <span class="ico">🔒</span>
+      <h4>Yours, locally</h4>
+      <p>One SQLite file in your home directory by default. No accounts, no cloud, no telemetry. When you outgrow one machine — the same server speaks PostgreSQL.</p>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <h2>Quick start</h2>
+
+  <div class="step">
+    <div class="n">1</div>
+    <div>
+      <h3>Install</h3>
+      <p>Needs the <a href="https://dotnet.microsoft.com/download">.NET 10 SDK</a>. This puts the <code class="inline">snail-mcp-memory</code> command on your PATH (<code class="inline">~/.dotnet/tools</code> — the .NET installer takes care of it):</p>
+      <div class="codebox">
+        <div class="bar"><span>shell — dotnet tool</span><button data-copy>copy</button></div>
+        <pre>dotnet tool install --global Snail.MCP.Memory --prerelease</pre>
+      </div>
+      <p><em>Alternative, no install:</em> the SDK ships the <code class="inline">dnx</code> runner — <code class="inline">dnx Snail.MCP.Memory --yes --prerelease</code> fetches the package from NuGet on first use, caches it and runs it.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">2</div>
+    <div>
+      <h3>Connect it to your client</h3>
+      <p>For Claude Code, one command; other clients are a few lines of JSON — see <a href="#clients">Clients</a>.</p>
+      <div class="codebox">
+        <div class="bar"><span>shell</span><button data-copy>copy</button></div>
+        <pre>claude mcp add mem0 --scope user -- snail-mcp-memory</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">3</div>
+    <div>
+      <h3>Use it</h3>
+      <p>In your next session, just say:</p>
+      <div class="quote">init memory for this project — we are building a REST API in Go with PostgreSQL</div>
+      <p>
+        The agent registers the project, and if memory already knows similar work, the reply carries a
+        <strong>briefing</strong>: which past projects look alike and which of their lessons apply here.
+        From then on the agent saves decisions as you work and recalls them when they matter.
+      </p>
+      <div class="note">
+        <b>First run:</b> the embedding model (~123&nbsp;MB) is downloaded once into
+        <code class="inline">~/.snail-mcp-memory/models/</code>. Until it arrives — or on machines where it
+        never can — everything still works, with text search instead of semantic search.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="clients">
+  <h2>Connecting to a client</h2>
+  <p class="lead">The server speaks stdio: every client config boils down to "run <code class="inline">snail-mcp-memory</code>" (or <code class="inline">dnx Snail.MCP.Memory --yes --prerelease</code> to skip installation). The examples register it as <code class="inline">mem0</code> — the slash commands in the repo pre-approve tools under that name. Zero configuration required — settings only change the defaults.</p>
+
+  <h3>Claude Code — <code class="inline">.mcp.json</code></h3>
+  <div class="codebox">
+    <div class="bar"><span>.mcp.json</span><button data-copy>copy</button></div>
+    <pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"mem0"</span>: {
+      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>
+    }
+  }
+}</pre>
+  </div>
+  <p>Running through <code class="inline">dnx</code> instead: <code class="inline">"command": "dnx", "args": ["Snail.MCP.Memory", "--yes", "--prerelease"]</code>.</p>
+
+  <h3>Claude Desktop</h3>
+  <p>
+    macOS: <code class="inline">~/Library/Application Support/Claude/claude_desktop_config.json</code> ·
+    Windows: <code class="inline">%APPDATA%\Claude\claude_desktop_config.json</code> — same JSON as above.
+    If the command is not found, use the full path <code class="inline">/Users/&lt;you&gt;/.dotnet/tools/snail-mcp-memory</code>.
+  </p>
+
+  <h3>VS Code — <code class="inline">.vscode/mcp.json</code></h3>
+  <div class="codebox">
+    <div class="bar"><span>.vscode/mcp.json</span><button data-copy>copy</button></div>
+    <pre>{
+  <span class="k">"servers"</span>: {
+    <span class="k">"mem0"</span>: {
+      <span class="k">"type"</span>: <span class="s">"stdio"</span>,
+      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>
+    }
+  }
+}</pre>
+  </div>
+</section>
+
+<section id="config">
+  <h2>Configuration</h2>
+  <p class="lead">
+    Every setting is an optional environment variable. This example lists <strong>all of them with their
+    defaults</strong> — copy it and keep only the lines you change:
+  </p>
+  <div class="codebox">
+    <div class="bar"><span>.mcp.json — every setting, default values</span><button data-copy>copy</button></div>
+    <pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"mem0"</span>: {
+      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>,
+      <span class="k">"env"</span>: {
+        <span class="k">"SNAIL_MCP_MEMORY_PROVIDER"</span>: <span class="s">"Sqlite"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_DIRECTORY"</span>: <span class="s">"~/.snail-mcp-memory"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_CONNECTION_STRING"</span>: <span class="s">""</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_WORKSPACE"</span>: <span class="s">""</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_ENABLED"</span>: <span class="s">"true"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH"</span>: <span class="s">"~/.snail-mcp-memory/models/model.onnx"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH"</span>: <span class="s">"~/.snail-mcp-memory/models/sentencepiece.bpe.model"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL"</span>: <span class="s">"https://huggingface.co/Xenova/multilingual-e5-small/resolve/main/onnx/model_quantized.onnx"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL"</span>: <span class="s">"https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentencepiece.bpe.model"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS"</span>: <span class="s">"384"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD"</span>: <span class="s">"0.95"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_SIMILARITY_FLOOR"</span>: <span class="s">"0.75"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"</span>: <span class="s">"60"</span>
+      }
+    }
+  }
+}</pre>
+  </div>
+  <p>
+    The same keys — bare names, without the prefix — can live in a JSON file instead:
+    <code class="inline">~/.snail-mcp-memory.json</code> (also read: the path in
+    <code class="inline">SNAIL_MCP_MEMORY_CONFIG</code>, <code class="inline">./.snail-mcp-memory.json</code>,
+    <code class="inline">./snail-mcp-memory.json</code>, <code class="inline">~/.config/snail-mcp-memory/config.json</code>).
+    Environment variables win over the file.
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>PROVIDER</code></td><td class="def">Sqlite</td><td><code>Sqlite</code> — single local file with sqlite-vec; <code>Postgres</code> — server database with pgvector</td></tr>
+        <tr><td><code>DIRECTORY</code></td><td class="def">~/.snail-mcp-memory</td><td>where the database and the models live; understands a leading <code>~</code></td></tr>
+        <tr><td><code>CONNECTION_STRING</code></td><td class="def">—</td><td>SQLite: a file path or <code>Data Source=…</code> (default <code>{Directory}/memory.db</code>). PostgreSQL: the full connection string, <strong>required</strong></td></tr>
+        <tr><td><code>WORKSPACE</code></td><td class="def">(empty)</td><td>partition of a shared database: writes are tagged with it, reads see only it; empty — the whole base</td></tr>
+        <tr><td><code>EMBEDDING_ENABLED</code></td><td class="def">true</td><td><code>false</code> turns semantic search off; recall falls back to text matching</td></tr>
+        <tr><td><code>EMBEDDING_MODEL_PATH</code></td><td class="def">{Directory}/models/…</td><td>where the ONNX model lives; downloaded on first use</td></tr>
+        <tr><td><code>EMBEDDING_TOKENIZER_PATH</code></td><td class="def">{Directory}/models/…</td><td>where the SentencePiece tokenizer lives; downloaded on first use</td></tr>
+        <tr><td><code>EMBEDDING_MODEL_URL</code> / <code>…_TOKENIZER_URL</code></td><td class="def">e5-small</td><td>download sources for a missing model (default: multilingual-e5-small, int8)</td></tr>
+        <tr><td><code>EMBEDDING_DIMENSIONS</code></td><td class="def">384</td><td>vector length of the configured model — change only together with the model</td></tr>
+        <tr><td><code>DUPLICATE_THRESHOLD</code></td><td class="def">0.95</td><td>similarity above which <code>remember</code> refuses a near-duplicate and offers supersession</td></tr>
+        <tr><td><code>SIMILARITY_FLOOR</code></td><td class="def">0.75</td><td>similarity below which a search hit is dropped; raise to ~0.8 if recall feels noisy</td></tr>
+        <tr><td><code>IDLE_TIMEOUT_MINUTES</code></td><td class="def">60</td><td>minutes without a tool call before an orphaned server process shuts itself down</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>PostgreSQL</h3>
+  <p>For a shared or backed-up memory, point the server at PostgreSQL with the <a href="https://github.com/pgvector/pgvector">pgvector</a> extension (the <code class="inline">pgvector/pgvector</code> Docker images ship it). Nothing else changes — same tools, same behavior:</p>
+  <div class="codebox">
+    <div class="bar"><span>env</span><button data-copy>copy</button></div>
+    <pre><span class="k">"SNAIL_MCP_MEMORY_PROVIDER"</span>: <span class="s">"Postgres"</span>,
+<span class="k">"SNAIL_MCP_MEMORY_CONNECTION_STRING"</span>: <span class="s">"Host=db.example.com;Database=memory;Username=snail;Password=…"</span></pre>
+  </div>
+</section>
+
+<section id="tools">
+  <h2>What the agent can do with it</h2>
+  <p class="lead">
+    You normally never call these yourself — the agent does, guided by instructions the server ships
+    inside the protocol itself. Knowing them helps you phrase requests.
+  </p>
+
+  <p>Every record carries a <strong>kind</strong>; the vocabulary is open, the core carries semantics:</p>
+  <div class="pills">
+    <span class="pill hot">fact</span><span class="pill hot">decision</span><span class="pill hot">lesson</span>
+    <span class="pill hot">preference</span><span class="pill">reference</span><span class="pill">task</span>
+    <span class="pill">event · expires in 90 days</span><span class="pill">note</span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>init_project_memory</code></td><td>registers a project and returns the experience briefing; <code>description</code> finds similar past projects, <code>seedFrom</code> preloads named donors</td></tr>
+        <tr><td><code>remember</code></td><td>stores one typed record; refuses a near-duplicate (supersede with <code>replaceId</code>, keep both with <code>force</code>)</td></tr>
+        <tr><td><code>recall</code></td><td>semantic search; empty project — the whole memory (that is how experience crosses projects), empty query — an overview of the newest records</td></tr>
+        <tr><td><code>forget</code></td><td>deletes records by id, several ids comma-separated</td></tr>
+        <tr><td><code>review_memory</code></td><td>nominates stale records for deletion; the deletion itself stays a confirmed <code>forget</code></td></tr>
+        <tr><td><code>list_projects</code></td><td>the projects that have memory, optionally narrowed by a name <code>prefix</code></td></tr>
+        <tr><td><code>rename_project</code></td><td>renames a project everywhere: registry, records, edges</td></tr>
+        <tr><td><code>link_projects</code></td><td>a directed, typed edge: <code>uses</code>, <code>depends_on</code>, <code>design_of</code>, <code>part_of</code>, <code>implements</code>, <code>documents</code></td></tr>
+        <tr><td><code>unlink_projects</code></td><td>removes the edges of a project pair</td></tr>
+        <tr><td><code>get_graph</code></td><td>the edges around a project, depth 1–5, without loading records</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Integration: copy two things from the repo</h3>
+  <p>
+    The protocol carries the tool descriptions — enough for basic use. The full integration is two
+    files you copy yourself from the git repository into your agent's setup; nothing is installed
+    automatically:
+  </p>
+  <p>
+    <strong>1. Slash commands.</strong> <code class="inline">.claude/commands/</code> holds
+    <code class="inline">mem0-init</code>, <code class="inline">mem0-recall</code>,
+    <code class="inline">mem0-remember</code>, <code class="inline">mem0-link</code>,
+    <code class="inline">mem0-graph</code>, <code class="inline">mem0-list</code> — manual one-shot
+    shortcuts with the <code class="inline">mem0</code> tools pre-approved, so they run without
+    permission prompts:
+  </p>
+  <div class="codebox">
+    <div class="bar"><span>shell</span><button data-copy>copy</button></div>
+    <pre>cp .claude/commands/mem0-*.md ~/.claude/commands/</pre>
+  </div>
+  <p>
+    Registered the server under another name? Adjust the <code class="inline">mcp__mem0__</code>
+    prefix inside the files.
+  </p>
+  <p>
+    <strong>2. Memory rules.</strong> <code class="inline">server-instructions.md</code> at the repo
+    root is the full instruction set — the kind vocabulary, when to save unprompted, when to search
+    before proposing, how to self-heal wrong records. Paste its content into your agent's instruction
+    file — <code class="inline">~/.claude/CLAUDE.md</code> for Claude Code, or the system prompt of a
+    custom agent. The agent works without it, but with it the memory maintains itself.
+  </p>
+</section>
+
+<section id="sharing">
+  <h2>Sharing one database</h2>
+  <div class="twocol">
+    <div class="card">
+      <span class="ico">👤</span>
+      <h4>Several projects, one person</h4>
+      <p>Nothing to configure. Projects live side by side in one database — that is exactly what makes cross-project experience transfer work.</p>
+    </div>
+    <div class="card">
+      <span class="ico">👥</span>
+      <h4>Several people, one database</h4>
+      <p>Give each their own <code>WORKSPACE</code>. Writes are tagged with it, reads never leave it — teammates do not see each other's memory. An empty workspace reads the whole base.</p>
+    </div>
+  </div>
+</section>
+
+<section id="notes">
+  <h2>Good to know</h2>
+  <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td>🌍 <strong>Language</strong></td><td>record content is stored in the language of your conversation; the model is multilingual, so search works across languages</td></tr>
+        <tr><td>✈️ <strong>Offline</strong></td><td>after the one-time model download the server needs no network at all</td></tr>
+        <tr><td>⏳ <strong>Lifecycle</strong></td><td><code>event</code> records expire after 90 days; durable kinds are only deleted by an explicit, confirmed <code>forget</code></td></tr>
+        <tr><td>🧯 <strong>Housekeeping</strong></td><td>an orphaned server process shuts itself down after an hour of silence (<code>IDLE_TIMEOUT_MINUTES</code>)</td></tr>
+        <tr><td>🗄️ <strong>Your data</strong></td><td>one SQLite file at <code>~/.snail-mcp-memory/memory.db</code>, inspectable with any SQLite browser</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  🐌 Snail.MCP.Memory · MIT ·
+  <a href="https://github.com/orldev/Snail.MCP.Memory">GitHub</a> ·
+  built for the <a href="https://modelcontextprotocol.io">Model Context Protocol</a>
+</footer>
+
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var pre = button.closest(".codebox").querySelector("pre");
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        button.textContent = "copied ✓";
+        setTimeout(function () { button.textContent = "copy"; }, 1600);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

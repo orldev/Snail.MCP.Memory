@@ -1,0 +1,92 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.orldev/snail-mcp-memory",
+  "description": "Universal long-term local memory for AI agents: typed records with semantic vector search, cross-project experience transfer and a directed knowledge graph.",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "Snail.MCP.Memory",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "SNAIL_MCP_MEMORY_PROVIDER",
+          "description": "Storage backend: Sqlite - single-file database with sqlite-vec (default), Postgres - PostgreSQL with pgvector.",
+          "isRequired": false,
+          "default": "Sqlite",
+          "choices": [
+            "Sqlite",
+            "Postgres"
+          ]
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_DIRECTORY",
+          "description": "Data directory. Default: ~/.snail-mcp-memory.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_CONNECTION_STRING",
+          "description": "Database location. Sqlite: bare file path or 'Data Source=...' (default {Directory}/memory.db). Postgres: the full connection string, required.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_WORKSPACE",
+          "description": "Workspace partition: everything written is tagged with it and reads are narrowed to it, so several people can share one database. Empty: the whole shared base.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_ENABLED",
+          "description": "Set to false to switch embeddings off; records are stored without vectors and recall falls back to text matching.",
+          "isRequired": false,
+          "default": "true",
+          "choices": [
+            "true",
+            "false"
+          ]
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH",
+          "description": "Path of the ONNX embedding model. Default: {Directory}/models/model.onnx, downloaded on first use (multilingual-e5-small, ~118 MB).",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH",
+          "description": "Path of the SentencePiece tokenizer. Default: {Directory}/models/sentencepiece.bpe.model, downloaded on first use.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS",
+          "description": "Vector length of the configured model. Default: 384.",
+          "isRequired": false,
+          "default": "384"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD",
+          "description": "Cosine similarity above which remember refuses a near-duplicate and offers supersession. Default: 0.95.",
+          "isRequired": false,
+          "default": "0.95"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_SIMILARITY_FLOOR",
+          "description": "Cosine similarity below which a search hit is dropped. Default: 0.75.",
+          "isRequired": false,
+          "default": "0.75"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES",
+          "description": "Minutes without a tool call before an orphaned server process shuts itself down. Default: 60.",
+          "isRequired": false,
+          "default": "60"
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/orldev/Snail.MCP.Memory",
+    "source": "github"
+  }
+}
