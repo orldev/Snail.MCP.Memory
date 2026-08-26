@@ -117,6 +117,61 @@ public sealed class GraphServiceTests : IDisposable
         Assert.Single(await _harness.Pending.ListAsync("a"));
     }
 
+    /// Sync writes auto edges and resolves the pair's suggestion; a target without memory is
+    /// skipped and named, not guessed into existence.
+    [Fact]
+    public async Task Sync_CreatesAutoEdgesResolvesPendingAndSkipsUnknownTargets()
+    {
+        await Register("A", "B");
+        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
+
+        var answer = await _service.SyncAsync("A",
+            [new RecordLink("B", LinkType.DependsOn), new RecordLink("Ghost", LinkType.Uses)], "csproj");
+
+        Assert.Contains(Messages.SyncSummary("csproj", "A", 1, 0, 0, 0), answer);
+        Assert.Contains(Messages.SyncSkipped("Ghost"), answer);
+        Assert.Equal(Messages.AutoNote("csproj"), Assert.Single(await _harness.Graph.GetAllAsync()).Note);
+        Assert.Empty(await _harness.Pending.ListAsync());
+    }
+
+    /// A manual edge outranks the sync; an auto edge that left the source is marked stale but
+    /// never deleted; the same payload twice changes nothing.
+    [Fact]
+    public async Task Sync_KeepsManualEdgesMarksDisappearedAutoEdgesStaleAndStaysIdempotent()
+    {
+        await Register("A", "B", "C");
+        await _service.LinkAsync("A", "B", LinkTypes.Uses, "hand-written");
+        await _service.SyncAsync("A", [new RecordLink("C", LinkType.DependsOn)], "obsidian");
+
+        var second = await _service.SyncAsync("A", [new RecordLink("B", LinkType.Uses)], "obsidian");
+
+        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 0, 1, 1), second);
+
+        var edges = await _harness.Graph.GetAllAsync();
+
+        Assert.Equal("hand-written", edges.Single(e => e.Target == "B").Note);
+        Assert.StartsWith(Messages.AutoNote("obsidian") + Messages.StaleMarker, edges.Single(e => e.Target == "C").Note);
+
+        var third = await _service.SyncAsync("A", [new RecordLink("B", LinkType.Uses)], "obsidian");
+
+        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 0, 1, 0), third);
+    }
+
+    /// A relation that returns to the source clears the stale marker: the refresh rewrites the
+    /// note to the clean auto tag.
+    [Fact]
+    public async Task Sync_RefreshRevivesAStaleEdge()
+    {
+        await Register("A", "C");
+        await _service.SyncAsync("A", [new RecordLink("C", LinkType.DependsOn)], "obsidian");
+        await _service.SyncAsync("A", [], "obsidian");
+
+        var answer = await _service.SyncAsync("A", [new RecordLink("C", LinkType.DependsOn)], "obsidian");
+
+        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 1, 0, 0), answer);
+        Assert.Equal(Messages.AutoNote("obsidian"), Assert.Single(await _harness.Graph.GetAllAsync()).Note);
+    }
+
     /// Depth expands through neighbors: from A with depth 2 the far edge B→C becomes visible,
     /// with depth 1 it does not.
     [Fact]

@@ -36,6 +36,15 @@ public static class KnowledgeGraphTools
         [Description("Edge type. Empty — remove every edge between these projects.")] string type = "") =>
         service.UnlinkAsync(from, to, type);
 
+    /// <summary>Upserts machine-extracted relations as auto edges.</summary>
+    [McpServerTool, Description(ToolDescriptions.SyncProjectLinks)]
+    public static Task<string> SyncProjectLinks(
+        GraphService service,
+        [Description(ToolDescriptions.ProjectNameParam)] string projectName,
+        [Description("The relations extracted from the source, each directed from this project to its 'to'.")] RecordLink[] links,
+        [Description("What was parsed to get them — csproj, package.json, obsidian, xml, … — stamped into the auto note.")] string source) =>
+        service.SyncAsync(projectName, links, source);
+
     /// <summary>Renders the edges around the selected projects without loading records.</summary>
     [McpServerTool, Description(ToolDescriptions.GetGraph)]
     public static Task<string> GetGraph(

@@ -103,6 +103,92 @@ public sealed class GraphService(
     public Task<IReadOnlyList<PendingLink>> PendingAsync(string projectKey, CancellationToken cancellationToken = default) =>
         pending.ListAsync(projectKey, cancellationToken);
 
+    /// <summary>
+    /// Upserts machine-extracted relations as auto edges: a manual edge is never overwritten,
+    /// an auto edge missing from its source is only marked stale, a target without memory is
+    /// skipped and reported. Idempotent — the same payload twice changes nothing.
+    /// </summary>
+    public async Task<string> SyncAsync(
+        string projectName, IReadOnlyList<RecordLink> links, string source, CancellationToken cancellationToken = default)
+    {
+        var project = ProjectIdentity.Normalize(projectName);
+
+        if (project.Length == 0)
+            return Messages.ProjectNameEmpty;
+
+        var projectKey = ProjectIdentity.Key(project);
+
+        if (await projects.GetAsync(projectKey, cancellationToken) is null)
+            return Messages.ProjectNotFound(project);
+
+        var sourceTag = source.Trim() is { Length: > 0 } tag ? tag : "sync";
+        var autoNote = Messages.AutoNote(sourceTag);
+        var now = timeProvider.GetUtcNow();
+
+        var outgoing = (await graph.GetForProjectsAsync([projectKey], cancellationToken))
+            .Where(edge => ProjectIdentity.Key(edge.Source) == projectKey)
+            .ToDictionary(edge => (ProjectIdentity.Key(edge.Target), edge.Type));
+
+        var desired = new HashSet<(string, string)>();
+        var notes = new List<string>();
+        int created = 0, refreshed = 0, kept = 0;
+
+        foreach (var link in links)
+        {
+            var target = ProjectIdentity.Normalize(link.To);
+            var targetKey = ProjectIdentity.Key(target);
+
+            if (target.Length == 0 || targetKey == projectKey)
+                continue;
+
+            if (await projects.GetAsync(targetKey, cancellationToken) is not { } registered)
+            {
+                notes.Add(Messages.SyncSkipped(target));
+                continue;
+            }
+
+            var type = link.Type.Wire();
+
+            if (!desired.Add((targetKey, type)))
+                continue;
+
+            if (!outgoing.TryGetValue((targetKey, type), out var existing))
+            {
+                await graph.UpsertAsync(new GraphEdge(project, registered.Name, type, autoNote, now), cancellationToken);
+                await pending.ResolveAsync(projectKey, targetKey, cancellationToken);
+                created++;
+            }
+            else if (existing.Note.StartsWith(Messages.AutoNotePrefix, StringComparison.Ordinal))
+            {
+                await graph.UpsertAsync(existing with { Note = autoNote, Updated = now }, cancellationToken);
+                refreshed++;
+            }
+            else
+            {
+                kept++;
+            }
+        }
+
+        var stale = 0;
+
+        foreach (var (slot, edge) in outgoing)
+        {
+            if (desired.Contains(slot) ||
+                !edge.Note.StartsWith(autoNote, StringComparison.Ordinal) ||
+                edge.Note.Contains(Messages.StaleMarker, StringComparison.Ordinal))
+                continue;
+
+            await graph.UpsertAsync(
+                edge with { Note = edge.Note + Messages.StaleSuffix(now.ToString(MemoryFormatter.DateFormat)), Updated = now },
+                cancellationToken);
+            stale++;
+        }
+
+        var summary = Messages.SyncSummary(sourceTag, project, created, refreshed, kept, stale);
+
+        return notes.Count == 0 ? summary : $"{summary}\n{string.Join('\n', notes)}";
+    }
+
     /// <summary>Removes edges between two projects regardless of direction; empty type — every type.</summary>
     public async Task<string> UnlinkAsync(
         string from, string to, string type = "", CancellationToken cancellationToken = default)

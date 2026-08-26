@@ -160,6 +160,25 @@ public static class Messages
         "_Confirm with link_projects (pick the type and direction) or reject with dismiss_link — " +
         "a suggestion returns every session until resolved._";
 
+    /// <summary>Prefix that marks an edge as machine-written; manual notes never start with it.</summary>
+    public const string AutoNotePrefix = "auto: ";
+
+    /// <summary>The note of a freshly synced auto edge.</summary>
+    public static string AutoNote(string source) => AutoNotePrefix + source;
+
+    /// <summary>Marker of a synced edge that disappeared from its source.</summary>
+    public const string StaleMarker = " · stale ";
+
+    /// <summary>The stale marker with the date the disappearance was noticed.</summary>
+    public static string StaleSuffix(string date) => StaleMarker + date;
+
+    /// <summary>Summary line of a sync run.</summary>
+    public static string SyncSummary(string source, string project, int created, int refreshed, int kept, int stale) =>
+        $"Sync '{source}' into '{project}': {created} created, {refreshed} refreshed, {kept} manual kept, {stale} marked stale.";
+
+    /// <summary>A sync target that has no memory.</summary>
+    public static string SyncSkipped(string name) => $"_Skipped '{name}' — no such project in memory._";
+
     /// <summary>Text for an empty graph.</summary>
     public const string GraphEmpty = "_The graph is empty. Link projects with the link_projects tool._";
 

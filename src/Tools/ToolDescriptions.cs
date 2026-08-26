@@ -72,6 +72,16 @@ public static class ToolDescriptions
         "when a mentioned project is not actually related; when the relation is real, confirm it " +
         "with link_projects instead.";
 
+    /// <summary><c>sync_project_links</c>.</summary>
+    public const string SyncProjectLinks =
+        "Syncs machine-extracted relations into the graph from any source of truth, not only " +
+        "code: a project manifest (csproj, package.json), an Obsidian vault's wiki-links, an XML " +
+        "registry. The caller parses the source and passes the relations; the server upserts " +
+        "them as auto edges (note 'auto: <source>'). Manual edges are never overwritten, an auto " +
+        "edge that disappeared from its source is only marked stale — never deleted — and a " +
+        "target with no memory is skipped and reported. Idempotent: the same payload twice " +
+        "changes nothing.";
+
     /// <summary><c>unlink_projects</c>.</summary>
     public const string UnlinkProjects =
         "Removes edges between two projects regardless of direction. Empty type removes every edge " +
