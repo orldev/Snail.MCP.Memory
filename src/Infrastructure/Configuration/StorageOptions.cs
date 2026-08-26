@@ -44,6 +44,9 @@ public sealed class StorageOptions
     /// <summary>Minutes without a tool call before the idle watchdog stops the process.</summary>
     public const int DefaultIdleTimeoutMinutes = 60;
 
+    /// <summary>Days between background audit runs.</summary>
+    public const int DefaultAuditIntervalDays = 7;
+
     /// <summary>Which backend stores the memory. Default: <see cref="Provider.Sqlite"/>.</summary>
     public Provider Provider { get; set; } = Provider.Sqlite;
 
@@ -82,6 +85,9 @@ public sealed class StorageOptions
 
     /// <summary>Minutes of idleness before the server shuts down. Empty — <see cref="DefaultIdleTimeoutMinutes"/>.</summary>
     public int? IdleTimeoutMinutes { get; set; }
+
+    /// <summary>Days between background audit runs. Empty — <see cref="DefaultAuditIntervalDays"/>; 0 — the audit is off.</summary>
+    public int? AuditIntervalDays { get; set; }
 
     /// <summary>Reads options from the config file and the environment; the environment wins.</summary>
     public static StorageOptions Load()
@@ -156,4 +162,10 @@ public sealed class StorageOptions
     public TimeSpan ResolveIdleTimeout() =>
         TimeSpan.FromMinutes(IdleTimeoutMinutes is > 0 ? IdleTimeoutMinutes.Value : DefaultIdleTimeoutMinutes);
 
+    /// <summary>Whether the background audit runs at all; an explicit 0 switches it off.</summary>
+    public bool ResolveAuditEnabled() => AuditIntervalDays is not 0;
+
+    /// <summary>Configured audit interval or the default week.</summary>
+    public TimeSpan ResolveAuditInterval() =>
+        TimeSpan.FromDays(AuditIntervalDays is > 0 ? AuditIntervalDays.Value : DefaultAuditIntervalDays);
 }

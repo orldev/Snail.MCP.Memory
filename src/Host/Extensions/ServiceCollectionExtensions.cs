@@ -29,6 +29,23 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
+        /// <summary>Registers the background audit unless it is switched off — see <see cref="AuditWorker"/>.</summary>
+        public IServiceCollection AddAuditWorker(StorageOptions options)
+        {
+            if (!options.ResolveAuditEnabled())
+                return services;
+
+            services.AddHostedService(sp => new AuditWorker(
+                sp.GetRequiredService<IAuditStore>(),
+                sp.GetRequiredService<Application.AuditService>(),
+                sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<ILogger<AuditWorker>>(),
+                options.ResolveAuditInterval(),
+                AuditWorker.DefaultCheckPeriod));
+
+            return services;
+        }
+
         /// <summary>
         /// Driving adapter: the tools are delivered to the model over stdio; every tool call
         /// marks the server as active. The memory rules travel in the tool descriptions and in

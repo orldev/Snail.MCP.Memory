@@ -133,6 +133,7 @@ public sealed class EfPendingLinkStoreTests : IDisposable
 
             Assert.True(await store.ProposeAsync(Suggestion()));
             Assert.Single(await store.ListAsync());
+            Assert.True(await new EfAuditStore(database, "").TryClaimAsync(TimeSpan.FromDays(7), _harness.Time.GetUtcNow()));
         }
         finally
         {

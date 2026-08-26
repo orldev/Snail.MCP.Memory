@@ -76,6 +76,13 @@ public sealed class MemoryDb(IDbContextFactory<MemoryDbContext> factory) : IDisp
         )
         """,
         """CREATE INDEX IF NOT EXISTS "IX_pending_links_Workspace_OtherKey" ON pending_links ("Workspace", "OtherKey")""",
+        """
+        CREATE TABLE IF NOT EXISTS audit_state (
+            "Workspace" TEXT NOT NULL,
+            "LastRun" BIGINT NOT NULL,
+            PRIMARY KEY ("Workspace")
+        )
+        """,
     ];
 
     private static async Task UpgradeAsync(MemoryDbContext context, CancellationToken cancellationToken)
@@ -91,6 +98,7 @@ public sealed class MemoryDb(IDbContextFactory<MemoryDbContext> factory) : IDisp
             _ = await context.Projects.AnyAsync(cancellationToken);
             _ = await context.Edges.AnyAsync(cancellationToken);
             _ = await context.PendingLinks.AnyAsync(cancellationToken);
+            _ = await context.AuditState.AnyAsync(cancellationToken);
 
             return true;
         }

@@ -61,6 +61,9 @@ public sealed class MemoryHarness : IDisposable
     /// <summary>A pending-link store over the same database, partitioned to <paramref name="workspace"/>.</summary>
     public EfPendingLinkStore PendingIn(string workspace) => new(Database, workspace);
 
+    /// <summary>An audit-lease store over the same database, partitioned to <paramref name="workspace"/>.</summary>
+    public EfAuditStore AuditIn(string workspace) => new(Database, workspace);
+
     public void Dispose()
     {
         Database.Dispose();

@@ -77,7 +77,17 @@ public sealed class PendingLinkRow
     public long Updated { get; set; }
 }
 
-/// <summary>The relational side of the memory database: projects, edges and pending link suggestions.</summary>
+/// <summary>Table row of the audit lease — one per workspace.</summary>
+public sealed class AuditStateRow
+{
+    /// <summary>Partition tag; empty for the unpartitioned base.</summary>
+    public string Workspace { get; set; } = "";
+
+    /// <summary>Unix seconds of the last claimed audit run.</summary>
+    public long LastRun { get; set; }
+}
+
+/// <summary>The relational side of the memory database: projects, edges, pending link suggestions and the audit lease.</summary>
 /// <remarks>One context, two providers — the stores above never see a dialect; instants are unix seconds so both map them identically.</remarks>
 public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) : DbContext(options)
 {
@@ -89,6 +99,9 @@ public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) :
 
     /// <summary>Unconfirmed link suggestions.</summary>
     public DbSet<PendingLinkRow> PendingLinks => Set<PendingLinkRow>();
+
+    /// <summary>Audit leases.</summary>
+    public DbSet<AuditStateRow> AuditState => Set<AuditStateRow>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -111,6 +124,12 @@ public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) :
             pending.ToTable("pending_links");
             pending.HasKey(row => new { row.Workspace, row.ProjectKey, row.OtherKey });
             pending.HasIndex(row => new { row.Workspace, row.OtherKey });
+        });
+
+        modelBuilder.Entity<AuditStateRow>(audit =>
+        {
+            audit.ToTable("audit_state");
+            audit.HasKey(row => row.Workspace);
         });
     }
 }

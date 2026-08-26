@@ -22,6 +22,7 @@ public static class HostBuilderExtensions
             builder.Services
                 .AddStorage(options)
                 .AddIdleShutdownWatcher(options)
+                .AddAuditWorker(options)
                 .AddMcpTransport();
 
             return builder;

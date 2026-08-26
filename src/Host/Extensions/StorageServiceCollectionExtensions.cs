@@ -54,6 +54,11 @@ public static class StorageServiceCollectionExtensions
                 sp.GetRequiredService<TimeProvider>(),
                 options.ResolveDuplicateThreshold(), options.ResolveSimilarityFloor()));
 
+            services.AddSingleton(sp => new AuditService(
+                sp.GetRequiredService<IRecordStore>(), sp.GetRequiredService<IProjectStore>(),
+                sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IPendingLinkStore>(),
+                sp.GetRequiredService<TimeProvider>()));
+
             services.AddSingleton(sp => new ProjectService(
                 sp.GetRequiredService<IProjectStore>(), sp.GetRequiredService<IRecordStore>(),
                 sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IPendingLinkStore>(),
@@ -76,6 +81,9 @@ public static class StorageServiceCollectionExtensions
 
             services.AddSingleton<IPendingLinkStore>(sp =>
                 new EfPendingLinkStore(sp.GetRequiredService<MemoryDb>(), options.ResolveWorkspace()));
+
+            services.AddSingleton<IAuditStore>(sp =>
+                new EfAuditStore(sp.GetRequiredService<MemoryDb>(), options.ResolveWorkspace()));
 
             services.AddSingleton<IRecordStore>(sp => new VectorRecordStore(
                 sp.GetRequiredService<VectorStoreCollection<string, RecordEntity>>(),
