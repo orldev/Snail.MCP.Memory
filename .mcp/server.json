@@ -81,6 +81,12 @@
           "description": "Minutes without a tool call before an orphaned server process shuts itself down. Default: 60.",
           "isRequired": false,
           "default": "60"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_AUDIT_INTERVAL_DAYS",
+          "description": "Days between background audit runs that re-scan records and queue pending link suggestions; 0 disables the audit. Default: 7.",
+          "isRequired": false,
+          "default": "7"
         }
       ]
     }
