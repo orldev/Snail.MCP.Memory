@@ -27,6 +27,16 @@ public sealed class ServerInstructionsFileTests
             Assert.Contains(type, Text);
     }
 
+    /// The pending queue is useless if the instructions do not say how to empty it.
+    [Fact]
+    public void Instructions_NameBothResolutionsOfAPendingSuggestion()
+    {
+        Assert.Contains("dismiss_link", Text);
+        Assert.Contains("link_projects", Text);
+        Assert.Contains("links", Text);
+        Assert.Contains("sync_project_links", Text);
+    }
+
     [Fact]
     public void Instructions_NameEveryShippedCommand()
     {

@@ -116,7 +116,8 @@ All settings are optional environment variables. This example lists **all of the
         "SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS": "384",
         "SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD": "0.95",
         "SNAIL_MCP_MEMORY_SIMILARITY_FLOOR": "0.75",
-        "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES": "60"
+        "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES": "60",
+        "SNAIL_MCP_MEMORY_AUDIT_INTERVAL_DAYS": "7"
       }
     }
   }
@@ -151,6 +152,7 @@ Environment variables win over the file.
 | `DUPLICATE_THRESHOLD` | `0.95` | Similarity above which `remember` refuses a near-duplicate and offers to supersede the old record instead |
 | `SIMILARITY_FLOOR` | `0.75` | Similarity below which a search hit is dropped. Raise to ~`0.8` if recall feels noisy, lower if it misses things |
 | `IDLE_TIMEOUT_MINUTES` | `60` | Minutes without a tool call before an orphaned server process shuts itself down |
+| `AUDIT_INTERVAL_DAYS` | `7` | Days between [background audit](#pending-link-suggestions) runs; `0` disables the audit |
 
 ## What the agent can do with it
 
@@ -159,7 +161,7 @@ You normally never call these yourself — the agent does, guided by the tool de
 | Tool | What it does |
 |---|---|
 | `init_project_memory` | registers a project and returns the experience briefing; without a name, uses the folder the client was started in; `description` finds similar past projects, `seedFrom` preloads named donors |
-| `remember` | stores one typed record — `fact`, `decision`, `lesson`, `preference`, `reference`, `task`, `event`, `note`; refuses a near-duplicate (supersede with `replaceId`, keep both with `force`) |
+| `remember` | stores one typed record — `fact`, `decision`, `lesson`, `preference`, `reference`, `task`, `event`, `note`; refuses a near-duplicate (supersede with `replaceId`, keep both with `force`); `links` creates graph edges in the same call |
 | `recall` | semantic search; empty project — the whole memory (that is how experience crosses projects), empty query — an overview of the newest records |
 | `forget` | deletes records by id, several ids comma-separated |
 | `review_memory` | nominates stale records for deletion; the deletion itself stays a confirmed `forget` |
@@ -167,9 +169,17 @@ You normally never call these yourself — the agent does, guided by the tool de
 | `rename_project` | renames a project everywhere: registry, records, edges |
 | `link_projects` | a directed, typed edge between projects: `uses`, `depends_on`, `design_of`, `part_of`, `implements`, `documents` |
 | `unlink_projects` | removes the edges of a project pair |
+| `dismiss_link` | rejects a pending link suggestion so the pair is never proposed again |
+| `sync_project_links` | upserts machine-extracted relations (from a manifest, an Obsidian vault, an XML registry, …) as auto edges that never overwrite manual ones |
 | `get_graph` | the edges around a project, depth 1–5, without loading records |
 
 Symmetric "these are related" links are deliberately not stored: vector similarity derives them at query time.
+
+### Pending link suggestions
+
+A record that mentions a known project with no edge to its own queues a **pending link suggestion**. The queue returns with every project-scoped `recall` and with `init_project_memory` until each pair is resolved: `link_projects` confirms the relation, `dismiss_link` rejects it permanently — there is no third state, so conceptual relations named in conversation stop getting lost.
+
+A **background audit** completes the picture: once per interval (`AUDIT_INTERVAL_DAYS`, default 7, `0` disables) the server re-scans all records and queues suggestions the write-time scan could not see — for example a mention written before the mentioned project had memory. However many agents share one database, the audit runs once per interval: every server process wakes hourly, and the run goes to whichever first claims an atomic lease stored in the database.
 
 ## Integration: copy two things from this repo
 
