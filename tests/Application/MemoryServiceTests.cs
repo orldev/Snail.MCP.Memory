@@ -12,7 +12,8 @@ public sealed class MemoryServiceTests : IDisposable
     public MemoryServiceTests()
     {
         _service = new MemoryService(
-            _harness.Records, _harness.Projects, _harness.Embedder, _harness.Time,
+            _harness.Records, _harness.Projects, _harness.Embedder,
+            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time,
             duplicateThreshold: 0.95, similarityFloor: 0.5);
     }
 
@@ -130,7 +131,8 @@ public sealed class MemoryServiceTests : IDisposable
         Assert.Null(await FakeEmbedder.Unavailable.TryEmbedAsync("probe", EmbeddingPurpose.Passage));
 
         var service = new MemoryService(
-            _harness.Records, _harness.Projects, FakeEmbedder.Unavailable, _harness.Time, 0.95, 0.5);
+            _harness.Records, _harness.Projects, FakeEmbedder.Unavailable,
+            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
         await service.RememberAsync("ProjectA", "Архитектура сервера");
 
         var answer = await service.RecallAsync("архитектура");
@@ -193,6 +195,67 @@ public sealed class MemoryServiceTests : IDisposable
 
         Assert.DoesNotContain("event", kinds);
         Assert.Contains("lesson", kinds);
+    }
+
+    /// links makes the record and its edges one call — the two-step "stored the decision,
+    /// forgot link_projects" mistake stops existing.
+    [Fact]
+    public async Task Remember_WithLinksStoresTheRecordAndTheEdgesAtomically()
+    {
+        await _service.RememberAsync("ProjectB", "the dependency");
+
+        var answer = await _service.RememberAsync("ProjectA", "we build on it",
+            links: [new RecordLink("ProjectB", LinkType.DependsOn, "runtime")]);
+
+        Assert.Contains(Messages.LinkCreated("ProjectA", LinkTypes.DependsOn, "ProjectB"), answer);
+        Assert.Single(await _harness.Graph.GetAllAsync());
+        Assert.Empty(await _harness.Pending.ListAsync());
+    }
+
+    /// A refused duplicate stores nothing — including the requested edges.
+    [Fact]
+    public async Task Remember_DuplicateRefusalCreatesNoLinks()
+    {
+        await _service.RememberAsync("ProjectB", "other knowledge");
+        await _service.RememberAsync("ProjectA", "the very same knowledge");
+
+        var answer = await _service.RememberAsync("ProjectA", "the very same knowledge",
+            links: [new RecordLink("ProjectB", LinkType.Uses)]);
+
+        Assert.Contains("Not stored", answer);
+        Assert.Empty(await _harness.Graph.GetAllAsync());
+    }
+
+    /// A record that names a known project without an edge queues a pending suggestion; the
+    /// suggestion then returns with every project-scoped recall until resolved.
+    [Fact]
+    public async Task Remember_QueuesAPendingSuggestionForAMentionedUnlinkedProject()
+    {
+        await _service.RememberAsync("ProjectB", "the other project");
+
+        var answer = await _service.RememberAsync("ProjectA", "shares the parser with ProjectB");
+
+        Assert.Contains(Messages.PendingTitle, answer);
+        Assert.Contains("ProjectB", answer);
+
+        var overview = await _service.RecallAsync(projectName: "ProjectA");
+        Assert.Contains(Messages.PendingTitle, overview);
+
+        var queried = await _service.RecallAsync("parser", projectName: "ProjectA");
+        Assert.Contains(Messages.PendingTitle, queried);
+    }
+
+    [Fact]
+    public async Task Remember_DoesNotReproposeAResolvedOrDismissedPair()
+    {
+        await _service.RememberAsync("ProjectB", "the other project");
+        await _service.RememberAsync("ProjectA", "shares the parser with ProjectB");
+        await _harness.Pending.DismissAsync("ProjectA", "ProjectB", _harness.Time.GetUtcNow());
+
+        var answer = await _service.RememberAsync("ProjectA", "again about ProjectB", force: true);
+
+        Assert.DoesNotContain(Messages.PendingTitle, answer);
+        Assert.Empty(await _harness.Pending.ListAsync());
     }
 
     /// Review nominates but never deletes: durable records that recall has never returned and

@@ -10,7 +10,7 @@ public sealed class GraphServiceTests : IDisposable
 
     public GraphServiceTests()
     {
-        _service = new GraphService(_harness.Graph, _harness.Projects, _harness.Time);
+        _service = new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time);
     }
 
     public void Dispose() => _harness.Dispose();
@@ -71,6 +71,50 @@ public sealed class GraphServiceTests : IDisposable
 
         Assert.Contains(Messages.WholeGraphTitle, rendered);
         Assert.Contains("| A | uses | B | runtime |", rendered);
+    }
+
+    /// Confirming an edge settles the pair's suggestion — the queue empties and the answer
+    /// says so.
+    [Fact]
+    public async Task Link_ResolvesThePendingSuggestionOfThePair()
+    {
+        await Register("A", "B");
+        await _harness.Pending.ProposeAsync(new PendingLink("B", "A", "", _harness.Time.GetUtcNow()));
+
+        var answer = await _service.LinkAsync("A", "B", LinkTypes.Uses);
+
+        Assert.Equal(Messages.LinkCreated("A", LinkTypes.Uses, "B") + Messages.PendingResolved(1), answer);
+        Assert.Empty(await _harness.Pending.ListAsync());
+    }
+
+    [Fact]
+    public async Task Dismiss_RejectsThePairAndValidatesLikeLink()
+    {
+        await Register("A", "B");
+        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
+
+        Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.DismissAsync("A", "Ghost"));
+        Assert.Equal(Messages.SelfLinkForbidden, await _service.DismissAsync("A", "a"));
+        Assert.Equal(Messages.LinkDismissed("A", "B"), await _service.DismissAsync("A", "B"));
+        Assert.Empty(await _harness.Pending.ListAsync());
+    }
+
+    /// The mention scan proposes only registered strangers: the own project, an already
+    /// linked project and an unknown name all stay out of the queue.
+    [Fact]
+    public async Task ProposeMentions_QueuesOnlyUnlinkedRegisteredProjects()
+    {
+        await Register("A", "B", "C");
+        await _service.LinkAsync("A", "C", LinkTypes.Uses);
+
+        var proposed = await _service.ProposeMentionsAsync(
+            "A", "A talks to B and C, and to the unknown D", "some record", CancellationToken.None);
+
+        var link = Assert.Single(proposed);
+
+        Assert.Equal("B", link.Other);
+        Assert.Equal("some record", link.Evidence);
+        Assert.Single(await _harness.Pending.ListAsync("a"));
     }
 
     /// Depth expands through neighbors: from A with depth 2 the far edge B→C becomes visible,

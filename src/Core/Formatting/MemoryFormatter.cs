@@ -191,6 +191,28 @@ public static class MemoryFormatter
         return builder.ToString().TrimEnd();
     }
 
+    /// <summary>The pending link suggestions queue: one line per pair, closed by the resolution hint.</summary>
+    public static string RenderPending(IReadOnlyList<PendingLink> pending)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(Messages.PendingTitle);
+
+        foreach (var link in pending)
+        {
+            builder.Append("- **").Append(link.Project).Append("** ↔ **").Append(link.Other).Append("**");
+
+            if (!string.IsNullOrWhiteSpace(link.Evidence))
+                builder.Append(" — ").Append(link.Evidence);
+
+            builder.Append(" · noticed ").Append(Date(link.Updated)).AppendLine();
+        }
+
+        builder.AppendLine();
+        builder.Append(Messages.PendingHint);
+
+        return builder.ToString();
+    }
+
     /// <summary>One record as a Markdown block with its id handle.</summary>
     public static void AppendRecord(StringBuilder builder, MemoryRecord record, double? similarity)
     {
@@ -236,7 +258,7 @@ public static class MemoryFormatter
     }
 
     /// <summary>A one-line handle of a record: its title, or a snippet of the content.</summary>
-    private static string Label(MemoryRecord record)
+    internal static string Label(MemoryRecord record)
     {
         if (!string.IsNullOrWhiteSpace(record.Title))
             return record.Title;

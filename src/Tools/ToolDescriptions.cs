@@ -23,7 +23,10 @@ public static class ToolDescriptions
         "preference (kind 'preference'). When the server answers that a very similar record exists, " +
         "do not retry blindly: either supersede it (replaceId) or store anyway (force: true). When " +
         "an existing record turned out wrong or outdated, replace it with replaceId instead of " +
-        "adding a second opinion next to it.";
+        "adding a second opinion next to it. When the record itself reveals a relation to another " +
+        "project, pass links — the record and its edges land in one call. A mentioned project " +
+        "with no edge yet comes back as a pending link suggestion: confirm it with link_projects " +
+        "or reject it with dismiss_link, do not ignore it.";
 
     /// <summary><c>recall</c>.</summary>
     public const string Recall =
@@ -32,7 +35,9 @@ public static class ToolDescriptions
         "whole memory (that is the default that transfers experience); set it to restore the context " +
         "of one project. An empty query returns an overview of the newest records — use that to " +
         "recover after a context reset. If a returned record is visibly wrong or outdated, fix the " +
-        "memory immediately: remember with replaceId, or forget.";
+        "memory immediately: remember with replaceId, or forget. A project-scoped recall also " +
+        "lists the project's pending link suggestions until each is confirmed (link_projects) or " +
+        "rejected (dismiss_link).";
 
     /// <summary><c>forget</c>.</summary>
     public const string Forget =
@@ -59,7 +64,13 @@ public static class ToolDescriptions
         "Creates or updates a directed, typed edge between two projects. Call it by itself the " +
         "moment a dependency becomes visible: one project uses another, holds its design, documents " +
         "it. Only directed facts belong here — 'these two are similar' is not stored, recall finds " +
-        "similarity by meaning.";
+        "similarity by meaning. A confirmed edge also settles the pair's pending link suggestion.";
+
+    /// <summary><c>dismiss_link</c>.</summary>
+    public const string DismissLink =
+        "Rejects a pending link suggestion: the pair stops being proposed, permanently. Use it " +
+        "when a mentioned project is not actually related; when the relation is real, confirm it " +
+        "with link_projects instead.";
 
     /// <summary><c>unlink_projects</c>.</summary>
     public const string UnlinkProjects =
@@ -92,4 +103,9 @@ public static class ToolDescriptions
     /// <summary>Wording of the link type parameter.</summary>
     public const string LinkTypeParam =
         "Edge type; all types are directed, from source to target.";
+
+    /// <summary>Wording of the links parameter of remember.</summary>
+    public const string LinksParam =
+        "Graph edges to create together with the record — the atomic form of link_projects: " +
+        "each element links this record's project to its 'to' project. Optional.";
 }

@@ -49,7 +49,35 @@ public sealed class EdgeRow
     public long Updated { get; set; }
 }
 
-/// <summary>The relational side of the memory database: projects and edges.</summary>
+/// <summary>Table row of an unconfirmed link suggestion.</summary>
+public sealed class PendingLinkRow
+{
+    /// <summary>Partition tag; empty for the unpartitioned base.</summary>
+    public string Workspace { get; set; } = "";
+
+    /// <summary>Case-folded key of the project whose record produced the suggestion.</summary>
+    public string ProjectKey { get; set; } = "";
+
+    /// <summary>Case-folded key of the mentioned project.</summary>
+    public string OtherKey { get; set; } = "";
+
+    /// <summary>Display name of the proposing project.</summary>
+    public string Project { get; set; } = "";
+
+    /// <summary>Display name of the mentioned project.</summary>
+    public string Other { get; set; } = "";
+
+    /// <summary>One-line handle of the record that triggered the suggestion.</summary>
+    public string Evidence { get; set; } = "";
+
+    /// <summary>0 — awaiting resolution; 1 — rejected, never suggested again.</summary>
+    public long Dismissed { get; set; }
+
+    /// <summary>Unix seconds of the last update.</summary>
+    public long Updated { get; set; }
+}
+
+/// <summary>The relational side of the memory database: projects, edges and pending link suggestions.</summary>
 /// <remarks>One context, two providers — the stores above never see a dialect; instants are unix seconds so both map them identically.</remarks>
 public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) : DbContext(options)
 {
@@ -58,6 +86,9 @@ public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) :
 
     /// <summary>Directed edges.</summary>
     public DbSet<EdgeRow> Edges => Set<EdgeRow>();
+
+    /// <summary>Unconfirmed link suggestions.</summary>
+    public DbSet<PendingLinkRow> PendingLinks => Set<PendingLinkRow>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -73,6 +104,13 @@ public sealed class MemoryDbContext(DbContextOptions<MemoryDbContext> options) :
             edge.ToTable("edges");
             edge.HasKey(row => new { row.Workspace, row.SourceKey, row.TargetKey, row.Type });
             edge.HasIndex(row => new { row.Workspace, row.TargetKey });
+        });
+
+        modelBuilder.Entity<PendingLinkRow>(pending =>
+        {
+            pending.ToTable("pending_links");
+            pending.HasKey(row => new { row.Workspace, row.ProjectKey, row.OtherKey });
+            pending.HasIndex(row => new { row.Workspace, row.OtherKey });
         });
     }
 }

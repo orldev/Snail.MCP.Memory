@@ -3,14 +3,15 @@ using Snail.MCP.Memory.Core.Formatting;
 
 namespace Snail.MCP.Memory.Application;
 
-/// <summary>The directed knowledge graph: linking, unlinking and rendering edges between projects.</summary>
+/// <summary>The directed knowledge graph: linking, unlinking, rendering, and the pending suggestion queue.</summary>
 /// <remarks>Both ends of a link must be registered projects — an edge to a name without memory is a phantom.</remarks>
-public sealed class GraphService(IGraphStore graph, IProjectStore projects, TimeProvider timeProvider)
+public sealed class GraphService(
+    IGraphStore graph, IProjectStore projects, IPendingLinkStore pending, TimeProvider timeProvider)
 {
     /// <summary>Depth bounds of a graph expansion.</summary>
     internal const int MaxDepth = 5;
 
-    /// <summary>Creates or updates one directed edge.</summary>
+    /// <summary>Creates or updates one directed edge; a confirmed edge settles the pair's pending suggestion.</summary>
     public async Task<string> LinkAsync(
         string from, string to, string type, string note = "", CancellationToken cancellationToken = default)
     {
@@ -30,10 +31,77 @@ public sealed class GraphService(IGraphStore graph, IProjectStore projects, Time
         var created = await graph.UpsertAsync(
             new GraphEdge(source, target, type, note.Trim(), timeProvider.GetUtcNow()), cancellationToken);
 
-        return created
+        var resolved = await pending.ResolveAsync(
+            ProjectIdentity.Key(source), ProjectIdentity.Key(target), cancellationToken);
+
+        var message = created
             ? Messages.LinkCreated(source, type, target)
             : Messages.LinkUpdated(source, type, target);
+
+        return resolved > 0 ? message + Messages.PendingResolved(resolved) : message;
     }
+
+    /// <summary>Rejects a suggested pair so it is never proposed again.</summary>
+    public async Task<string> DismissAsync(string from, string to, CancellationToken cancellationToken = default)
+    {
+        var source = ProjectIdentity.Normalize(from);
+        var target = ProjectIdentity.Normalize(to);
+
+        if (source.Length == 0 || target.Length == 0)
+            return Messages.BothProjectsRequired;
+
+        if (ProjectIdentity.Equal(source, target))
+            return Messages.SelfLinkForbidden;
+
+        foreach (var end in new[] { source, target })
+            if (await projects.GetAsync(ProjectIdentity.Key(end), cancellationToken) is null)
+                return Messages.ProjectNotFound(end);
+
+        await pending.DismissAsync(source, target, timeProvider.GetUtcNow(), cancellationToken);
+
+        return Messages.LinkDismissed(source, target);
+    }
+
+    /// <summary>
+    /// Queues a suggestion for every registered project the text mentions that has neither an
+    /// edge to <paramref name="projectName"/> nor an earlier suggestion; returns what was
+    /// newly queued.
+    /// </summary>
+    public async Task<IReadOnlyList<PendingLink>> ProposeMentionsAsync(
+        string projectName, string text, string evidence, CancellationToken cancellationToken = default)
+    {
+        var project = ProjectIdentity.Normalize(projectName);
+        var projectKey = ProjectIdentity.Key(project);
+
+        var mentioned = (await projects.ListAsync(cancellationToken))
+            .Where(candidate => ProjectIdentity.Key(candidate.Name) != projectKey)
+            .Where(candidate => ProjectMentions.Mentions(text, candidate.Name))
+            .ToList();
+
+        if (mentioned.Count == 0)
+            return [];
+
+        var linked = (await graph.GetForProjectsAsync([projectKey], cancellationToken))
+            .SelectMany(edge => new[] { ProjectIdentity.Key(edge.Source), ProjectIdentity.Key(edge.Target) })
+            .ToHashSet();
+
+        var now = timeProvider.GetUtcNow();
+        var proposed = new List<PendingLink>();
+
+        foreach (var candidate in mentioned.Where(c => !linked.Contains(ProjectIdentity.Key(c.Name))))
+        {
+            var link = new PendingLink(project, candidate.Name, evidence, now);
+
+            if (await pending.ProposeAsync(link, cancellationToken))
+                proposed.Add(link);
+        }
+
+        return proposed;
+    }
+
+    /// <summary>The open suggestions touching a project.</summary>
+    public Task<IReadOnlyList<PendingLink>> PendingAsync(string projectKey, CancellationToken cancellationToken = default) =>
+        pending.ListAsync(projectKey, cancellationToken);
 
     /// <summary>Removes edges between two projects regardless of direction; empty type — every type.</summary>
     public async Task<string> UnlinkAsync(

@@ -27,6 +27,7 @@ public sealed class MemoryHarness : IDisposable
         Records = RecordsIn(workspace);
         Projects = ProjectsIn(workspace);
         Graph = GraphIn(workspace);
+        Pending = PendingIn(workspace);
         Embedder = new FakeEmbedder(dimensions: dimensions);
         Time = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
     }
@@ -38,6 +39,8 @@ public sealed class MemoryHarness : IDisposable
     public IProjectStore Projects { get; }
 
     public IGraphStore Graph { get; }
+
+    public IPendingLinkStore Pending { get; }
 
     public FakeEmbedder Embedder { get; }
 
@@ -54,6 +57,9 @@ public sealed class MemoryHarness : IDisposable
 
     /// <summary>A graph store over the same database, partitioned to <paramref name="workspace"/>.</summary>
     public EfGraphStore GraphIn(string workspace) => new(Database, workspace);
+
+    /// <summary>A pending-link store over the same database, partitioned to <paramref name="workspace"/>.</summary>
+    public EfPendingLinkStore PendingIn(string workspace) => new(Database, workspace);
 
     public void Dispose()
     {

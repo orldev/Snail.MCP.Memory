@@ -42,6 +42,33 @@ public sealed class ToolSchemaTests
         Assert.Equal(LinkTypes.All, wires);
     }
 
+    /// The atomic links of remember carry the same closed vocabulary as link_projects — the
+    /// nested schema, not prose, is what rejects an invented type.
+    [Fact]
+    public void Remember_LinkTypeInsideLinksIsTheSameStringEnum()
+    {
+        var schema = McpServerTool.Create(typeof(ProjectMemoryTools).GetMethod(nameof(ProjectMemoryTools.Remember))!)
+            .ProtocolTool.InputSchema;
+        var links = schema.GetProperty("properties").GetProperty("links");
+        var type = ItemsOf(links).GetProperty("properties").GetProperty("type");
+        var values = type.GetProperty("enum").EnumerateArray().Select(v => v.GetString()).ToHashSet();
+
+        Assert.Equal(LinkTypes.All.ToHashSet(), values!);
+    }
+
+    /// A nullable array may be rendered directly or wrapped in anyOf; the items live either way.
+    private static JsonElement ItemsOf(JsonElement arraySchema)
+    {
+        if (arraySchema.TryGetProperty("items", out var items))
+            return items;
+
+        foreach (var branch in arraySchema.GetProperty("anyOf").EnumerateArray())
+            if (branch.TryGetProperty("items", out var branchItems))
+                return branchItems;
+
+        throw new InvalidOperationException("The links schema declares no items.");
+    }
+
     private static JsonElement InputSchemaOf(string method) =>
         McpServerTool.Create(typeof(KnowledgeGraphTools).GetMethod(method)!).ProtocolTool.InputSchema;
 }

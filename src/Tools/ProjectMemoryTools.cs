@@ -37,7 +37,7 @@ public static class ProjectMemoryTools
         [Description(ToolDescriptions.PrefixParam)] string prefix = "") =>
         service.ListAsync(prefix);
 
-    /// <summary>Stores one record, with duplicate detection and supersession.</summary>
+    /// <summary>Stores one record, with duplicate detection, supersession and atomic edges.</summary>
     [McpServerTool, Description(ToolDescriptions.Remember)]
     public static Task<string> Remember(
         MemoryService service,
@@ -46,8 +46,9 @@ public static class ProjectMemoryTools
         [Description(ToolDescriptions.KindParam)] string kind = "",
         [Description("Short label of the record. Optional.")] string title = "",
         [Description("Id of the record this one supersedes; the old record is deleted. Optional.")] string replaceId = "",
-        [Description("Store even when a very similar record exists.")] bool force = false) =>
-        service.RememberAsync(projectName, content, kind, title, replaceId, force);
+        [Description("Store even when a very similar record exists.")] bool force = false,
+        [Description(ToolDescriptions.LinksParam)] RecordLink[]? links = null) =>
+        service.RememberAsync(projectName, content, kind, title, replaceId, force, links);
 
     /// <summary>Searches memory by meaning; empty query renders an overview.</summary>
     [McpServerTool, Description(ToolDescriptions.Recall)]

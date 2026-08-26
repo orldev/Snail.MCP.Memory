@@ -19,6 +19,14 @@ public static class KnowledgeGraphTools
         [Description("What exactly connects them — one line. Optional.")] string note = "") =>
         service.LinkAsync(from, to, type.Wire(), note);
 
+    /// <summary>Rejects a pending link suggestion so the pair is never proposed again.</summary>
+    [McpServerTool, Description(ToolDescriptions.DismissLink)]
+    public static Task<string> DismissLink(
+        GraphService service,
+        [Description("First project of the suggested pair.")] string from,
+        [Description("Second project of the suggested pair.")] string to) =>
+        service.DismissAsync(from, to);
+
     /// <summary>Removes edges between two projects regardless of direction.</summary>
     [McpServerTool, Description(ToolDescriptions.UnlinkProjects)]
     public static Task<string> UnlinkProjects(

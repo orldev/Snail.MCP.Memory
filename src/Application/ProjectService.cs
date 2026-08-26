@@ -9,6 +9,7 @@ public sealed class ProjectService(
     IProjectStore projects,
     IRecordStore records,
     IGraphStore graph,
+    IPendingLinkStore pending,
     IEmbedder embedder,
     TimeProvider timeProvider,
     double similarityFloor = 0)
@@ -39,8 +40,11 @@ public sealed class ProjectService(
             : Messages.ProjectAlreadyExists(
                 (await projects.GetAsync(ProjectIdentity.Key(project), cancellationToken))?.Name ?? project);
         var briefing = await BriefingAsync(project, description, seedFrom, cancellationToken);
+        var queue = await pending.ListAsync(ProjectIdentity.Key(project), cancellationToken);
 
-        return $"{headline}\n\n{briefing}";
+        return queue.Count == 0
+            ? $"{headline}\n\n{briefing}"
+            : $"{headline}\n\n{briefing}\n\n{MemoryFormatter.RenderPending(queue)}";
     }
 
     /// <summary>The project listing, filtered by prefix and ordered case-insensitively.</summary>
@@ -77,6 +81,7 @@ public sealed class ProjectService(
         await projects.RenameAsync(oldKey, newProject, cancellationToken);
         var movedRecords = await records.RenameProjectAsync(oldKey, newProject, cancellationToken);
         var movedEdges = await graph.RenameProjectAsync(oldKey, newProject, cancellationToken);
+        await pending.RenameProjectAsync(oldKey, newProject, cancellationToken);
 
         return Messages.ProjectRenamed(oldProject, newProject, movedRecords, movedEdges);
     }

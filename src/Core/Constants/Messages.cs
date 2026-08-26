@@ -145,6 +145,21 @@ public static class Messages
     /// <summary>Unknown edge type with the list of allowed ones.</summary>
     public static string UnknownLinkType(string type, string allowed) => $"Unknown link type '{type}'. Allowed: {allowed}.";
 
+    /// <summary>A pending suggestion settled by a confirmed edge.</summary>
+    public static string PendingResolved(int count) => $"\n✅ Pending link suggestion resolved ({count}).";
+
+    /// <summary>A suggested pair was rejected.</summary>
+    public static string LinkDismissed(string a, string b) =>
+        $"Link suggestion between '{a}' and '{b}' dismissed; the pair will not be suggested again.";
+
+    /// <summary>Sub-heading of the pending link suggestions queue.</summary>
+    public const string PendingTitle = "### ⏳ Pending link suggestions";
+
+    /// <summary>Closing hint of the pending queue.</summary>
+    public const string PendingHint =
+        "_Confirm with link_projects (pick the type and direction) or reject with dismiss_link — " +
+        "a suggestion returns every session until resolved._";
+
     /// <summary>Text for an empty graph.</summary>
     public const string GraphEmpty = "_The graph is empty. Link projects with the link_projects tool._";
 

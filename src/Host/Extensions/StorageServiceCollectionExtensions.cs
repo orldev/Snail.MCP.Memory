@@ -44,19 +44,21 @@ public static class StorageServiceCollectionExtensions
         /// <summary>The provider-independent services behind the tools.</summary>
         private IServiceCollection AddApplicationServices(StorageOptions options)
         {
+            services.AddSingleton(sp => new GraphService(
+                sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IProjectStore>(),
+                sp.GetRequiredService<IPendingLinkStore>(), sp.GetRequiredService<TimeProvider>()));
+
             services.AddSingleton(sp => new MemoryService(
                 sp.GetRequiredService<IRecordStore>(), sp.GetRequiredService<IProjectStore>(),
-                sp.GetRequiredService<IEmbedder>(), sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<IEmbedder>(), sp.GetRequiredService<GraphService>(),
+                sp.GetRequiredService<TimeProvider>(),
                 options.ResolveDuplicateThreshold(), options.ResolveSimilarityFloor()));
 
             services.AddSingleton(sp => new ProjectService(
                 sp.GetRequiredService<IProjectStore>(), sp.GetRequiredService<IRecordStore>(),
-                sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IEmbedder>(),
+                sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IPendingLinkStore>(),
+                sp.GetRequiredService<IEmbedder>(),
                 sp.GetRequiredService<TimeProvider>(), options.ResolveSimilarityFloor()));
-
-            services.AddSingleton(sp => new GraphService(
-                sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IProjectStore>(),
-                sp.GetRequiredService<TimeProvider>()));
 
             return services;
         }
@@ -71,6 +73,9 @@ public static class StorageServiceCollectionExtensions
 
             services.AddSingleton<IGraphStore>(sp =>
                 new EfGraphStore(sp.GetRequiredService<MemoryDb>(), options.ResolveWorkspace()));
+
+            services.AddSingleton<IPendingLinkStore>(sp =>
+                new EfPendingLinkStore(sp.GetRequiredService<MemoryDb>(), options.ResolveWorkspace()));
 
             services.AddSingleton<IRecordStore>(sp => new VectorRecordStore(
                 sp.GetRequiredService<VectorStoreCollection<string, RecordEntity>>(),

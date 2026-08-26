@@ -12,10 +12,11 @@ public sealed class ProjectServiceTests : IDisposable
     public ProjectServiceTests()
     {
         _service = new ProjectService(
-            _harness.Projects, _harness.Records, _harness.Graph, _harness.Embedder, _harness.Time,
+            _harness.Projects, _harness.Records, _harness.Graph, _harness.Pending, _harness.Embedder, _harness.Time,
             similarityFloor: 0.5);
         _memory = new MemoryService(
-            _harness.Records, _harness.Projects, _harness.Embedder, _harness.Time, 0.95, 0.5);
+            _harness.Records, _harness.Projects, _harness.Embedder,
+            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
     }
 
     public void Dispose() => _harness.Dispose();
@@ -70,6 +71,34 @@ public sealed class ProjectServiceTests : IDisposable
 
         Assert.Contains("Alpha", answer);
         Assert.DoesNotContain("Beta", answer);
+    }
+
+    /// Re-initializing an existing project surfaces its unresolved suggestions — the queue
+    /// greets every session start until it is worked off.
+    [Fact]
+    public async Task Init_OfAnExistingProjectListsItsPendingSuggestions()
+    {
+        await _service.InitAsync("A");
+        await _service.InitAsync("B");
+        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "a record", _harness.Time.GetUtcNow()));
+
+        var answer = await _service.InitAsync("A");
+
+        Assert.Contains(Messages.PendingTitle, answer);
+        Assert.Contains("a record", answer);
+    }
+
+    [Fact]
+    public async Task Rename_MovesPendingSuggestionsToo()
+    {
+        await _service.InitAsync("Old");
+        await _service.InitAsync("Other");
+        await _harness.Pending.ProposeAsync(new PendingLink("Old", "Other", "", _harness.Time.GetUtcNow()));
+
+        await _service.RenameAsync("Old", "Fresh");
+
+        Assert.Equal("Fresh", Assert.Single(await _harness.Pending.ListAsync("fresh")).Project);
+        Assert.Empty(await _harness.Pending.ListAsync("old"));
     }
 
     [Fact]

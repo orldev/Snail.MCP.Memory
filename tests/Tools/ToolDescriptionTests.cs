@@ -88,11 +88,26 @@ public sealed class ToolDescriptionTests
         }
     }
 
+    /// The atomic form must stay optional — a required links array would break every plain
+    /// remember call — and the queue's own hint has to name the only two ways out of it.
+    [Fact]
+    public void Remember_LeavesLinksOptionalAndThePendingHintNamesBothResolutions()
+    {
+        var links = typeof(ProjectMemoryTools)
+            .GetMethod(nameof(ProjectMemoryTools.Remember))!
+            .GetParameters().Single(p => p.Name == "links");
+
+        Assert.True(links.IsOptional);
+        Assert.Contains("link_projects", Messages.PendingHint);
+        Assert.Contains("dismiss_link", Messages.PendingHint);
+    }
+
     /// Services and the clock are injected by the host and never reach the schema; the rest
     /// are arguments the model has to fill in blind.
     private static bool IsModelFacing(ParameterInfo parameter) =>
         parameter.ParameterType == typeof(string) ||
         parameter.ParameterType == typeof(bool) ||
         parameter.ParameterType == typeof(int) ||
-        parameter.ParameterType.IsEnum;
+        parameter.ParameterType.IsEnum ||
+        parameter.ParameterType.IsArray;
 }

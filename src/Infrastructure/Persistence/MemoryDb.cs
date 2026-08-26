@@ -44,6 +44,8 @@ public sealed class MemoryDb(IDbContextFactory<MemoryDbContext> factory) : IDisp
             }
             catch (Exception)
             {
+                await UpgradeAsync(context, cancellationToken);
+
                 if (!await TablesExistAsync(context, cancellationToken))
                     throw;
             }
@@ -56,12 +58,39 @@ public sealed class MemoryDb(IDbContextFactory<MemoryDbContext> factory) : IDisp
         }
     }
 
+    /// <summary>DDL of tables added after the first release, for databases whose older schema makes <c>CreateTablesAsync</c> throw wholesale.</summary>
+    /// <remarks>EF Core has no per-table create; quoted identifiers and TEXT/BIGINT keep the statements valid for both SQLite and PostgreSQL.</remarks>
+    private static readonly string[] UpgradeDdl =
+    [
+        """
+        CREATE TABLE IF NOT EXISTS pending_links (
+            "Workspace" TEXT NOT NULL,
+            "ProjectKey" TEXT NOT NULL,
+            "OtherKey" TEXT NOT NULL,
+            "Project" TEXT NOT NULL,
+            "Other" TEXT NOT NULL,
+            "Evidence" TEXT NOT NULL,
+            "Dismissed" BIGINT NOT NULL,
+            "Updated" BIGINT NOT NULL,
+            PRIMARY KEY ("Workspace", "ProjectKey", "OtherKey")
+        )
+        """,
+        """CREATE INDEX IF NOT EXISTS "IX_pending_links_Workspace_OtherKey" ON pending_links ("Workspace", "OtherKey")""",
+    ];
+
+    private static async Task UpgradeAsync(MemoryDbContext context, CancellationToken cancellationToken)
+    {
+        foreach (var statement in UpgradeDdl)
+            await context.Database.ExecuteSqlRawAsync(statement, cancellationToken);
+    }
+
     private static async Task<bool> TablesExistAsync(MemoryDbContext context, CancellationToken cancellationToken)
     {
         try
         {
             _ = await context.Projects.AnyAsync(cancellationToken);
             _ = await context.Edges.AnyAsync(cancellationToken);
+            _ = await context.PendingLinks.AnyAsync(cancellationToken);
 
             return true;
         }

@@ -10,6 +10,7 @@ public sealed class MemoryService(
     IRecordStore records,
     IProjectStore projects,
     IEmbedder embedder,
+    GraphService graph,
     TimeProvider timeProvider,
     double duplicateThreshold,
     double similarityFloor = 0,
@@ -17,10 +18,11 @@ public sealed class MemoryService(
 {
     private readonly RetentionPolicy _retention = retention ?? RetentionPolicy.Default;
 
-    /// <summary>Stores one record: a near-duplicate blocks the insert unless forced, <paramref name="replaceIdRaw"/> supersedes keeping the creation date, a missing project is registered on the fly.</summary>
+    /// <summary>Stores one record: a near-duplicate blocks the insert unless forced, <paramref name="replaceIdRaw"/> supersedes keeping the creation date, a missing project is registered on the fly, <paramref name="links"/> creates edges atomically, and mentioned-but-unlinked projects queue pending suggestions.</summary>
     public async Task<string> RememberAsync(
         string projectName, string content, string kind = "", string title = "",
-        string replaceIdRaw = "", bool force = false, CancellationToken cancellationToken = default)
+        string replaceIdRaw = "", bool force = false, IReadOnlyList<RecordLink>? links = null,
+        CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
@@ -72,13 +74,25 @@ public sealed class MemoryService(
         if (replaced is not null)
             await records.DeleteAsync([replaced.Id], cancellationToken);
 
-        var message = replaced is null
+        var message = new StringBuilder(replaced is null
             ? Messages.Recorded(record.Kind, record.Project, record.Id)
-            : Messages.RecordReplaced(replaced.Id, record.Id);
+            : Messages.RecordReplaced(replaced.Id, record.Id));
+
+        foreach (var link in links ?? [])
+            message.AppendLine().Append(await graph.LinkAsync(project, link.To, link.Type.Wire(), link.Note, cancellationToken));
+
+        var proposed = await graph.ProposeMentionsAsync(
+            project, EmbeddingText(title, content), MemoryFormatter.Label(record), cancellationToken);
+
+        if (proposed.Count > 0)
+            message.AppendLine().AppendLine().Append(MemoryFormatter.RenderPending(proposed));
 
         var purged = await records.PurgeEventsBeforeAsync(now - _retention.EventTtl, cancellationToken);
 
-        return purged > 0 ? message + Messages.PurgeNotice(purged) : message;
+        if (purged > 0)
+            message.Append(Messages.PurgeNotice(purged));
+
+        return message.ToString();
     }
 
     /// <summary>Finds records by meaning: an empty query renders an overview, an empty project searches the whole memory, returned records are marked as accessed.</summary>
@@ -102,8 +116,8 @@ public sealed class MemoryService(
             var listed = await records.ListAsync(filter, top, cancellationToken);
             await MarkAccessedAsync(listed, cancellationToken);
 
-            return MemoryFormatter.RenderOverview(
-                project.Length > 0 ? project : Messages.ScopeWholeMemory, kindLabel, listed);
+            return await WithPendingAsync(MemoryFormatter.RenderOverview(
+                project.Length > 0 ? project : Messages.ScopeWholeMemory, kindLabel, listed), project, cancellationToken);
         }
 
         var embedding = await embedder.TryEmbedAsync(query.Trim(), EmbeddingPurpose.Query, cancellationToken);
@@ -116,8 +130,9 @@ public sealed class MemoryService(
 
         await MarkAccessedAsync(found.Select(scored => scored.Record), cancellationToken);
 
-        return MemoryFormatter.RenderRecall(
-            query.Trim(), MemoryFormatter.Scope(project), kindLabel, found, usedTextFallback: embedding is null);
+        return await WithPendingAsync(MemoryFormatter.RenderRecall(
+            query.Trim(), MemoryFormatter.Scope(project), kindLabel, found, usedTextFallback: embedding is null),
+            project, cancellationToken);
     }
 
     /// <summary>Deletes records by id; several ids come comma- or space-separated.</summary>
@@ -174,6 +189,17 @@ public sealed class MemoryService(
         return nearest is [{ Similarity: { } similarity } candidate, ..] && similarity >= duplicateThreshold
             ? candidate
             : null;
+    }
+
+    /// <summary>Appends the project's open link suggestions — the queue returns with every project-scoped recall until resolved.</summary>
+    private async Task<string> WithPendingAsync(string answer, string project, CancellationToken cancellationToken)
+    {
+        if (project.Length == 0)
+            return answer;
+
+        var queue = await graph.PendingAsync(ProjectIdentity.Key(project), cancellationToken);
+
+        return queue.Count == 0 ? answer : $"{answer}\n\n{MemoryFormatter.RenderPending(queue)}";
     }
 
     private Task MarkAccessedAsync(IEnumerable<MemoryRecord> found, CancellationToken cancellationToken)
