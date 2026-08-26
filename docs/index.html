@@ -407,7 +407,8 @@
         <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS"</span>: <span class="s">"384"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD"</span>: <span class="s">"0.95"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_SIMILARITY_FLOOR"</span>: <span class="s">"0.75"</span>,
-        <span class="k">"SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"</span>: <span class="s">"60"</span>
+        <span class="k">"SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"</span>: <span class="s">"60"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_AUDIT_INTERVAL_DAYS"</span>: <span class="s">"7"</span>
       }
     }
   }
@@ -437,6 +438,7 @@
         <tr><td><code>DUPLICATE_THRESHOLD</code></td><td class="def">0.95</td><td>similarity above which <code>remember</code> refuses a near-duplicate and offers supersession</td></tr>
         <tr><td><code>SIMILARITY_FLOOR</code></td><td class="def">0.75</td><td>similarity below which a search hit is dropped; raise to ~0.8 if recall feels noisy</td></tr>
         <tr><td><code>IDLE_TIMEOUT_MINUTES</code></td><td class="def">60</td><td>minutes without a tool call before an orphaned server process shuts itself down</td></tr>
+        <tr><td><code>AUDIT_INTERVAL_DAYS</code></td><td class="def">7</td><td>days between background audit runs (re-scans records and queues pending link suggestions); <code>0</code> disables</td></tr>
       </tbody>
     </table>
   </div>
@@ -469,7 +471,7 @@
       <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
       <tbody>
         <tr><td><code>init_project_memory</code></td><td>registers a project and returns the experience briefing; <code>description</code> finds similar past projects, <code>seedFrom</code> preloads named donors</td></tr>
-        <tr><td><code>remember</code></td><td>stores one typed record; refuses a near-duplicate (supersede with <code>replaceId</code>, keep both with <code>force</code>)</td></tr>
+        <tr><td><code>remember</code></td><td>stores one typed record; refuses a near-duplicate (supersede with <code>replaceId</code>, keep both with <code>force</code>); <code>links</code> creates graph edges in the same call</td></tr>
         <tr><td><code>recall</code></td><td>semantic search; empty project — the whole memory (that is how experience crosses projects), empty query — an overview of the newest records</td></tr>
         <tr><td><code>forget</code></td><td>deletes records by id, several ids comma-separated</td></tr>
         <tr><td><code>review_memory</code></td><td>nominates stale records for deletion; the deletion itself stays a confirmed <code>forget</code></td></tr>
@@ -477,10 +479,25 @@
         <tr><td><code>rename_project</code></td><td>renames a project everywhere: registry, records, edges</td></tr>
         <tr><td><code>link_projects</code></td><td>a directed, typed edge: <code>uses</code>, <code>depends_on</code>, <code>design_of</code>, <code>part_of</code>, <code>implements</code>, <code>documents</code></td></tr>
         <tr><td><code>unlink_projects</code></td><td>removes the edges of a project pair</td></tr>
+        <tr><td><code>dismiss_link</code></td><td>rejects a pending link suggestion so the pair is never proposed again</td></tr>
+        <tr><td><code>sync_project_links</code></td><td>upserts machine-extracted relations (a manifest, an Obsidian vault, an XML registry, …) as auto edges that never overwrite manual ones</td></tr>
         <tr><td><code>get_graph</code></td><td>the edges around a project, depth 1–5, without loading records</td></tr>
       </tbody>
     </table>
   </div>
+
+  <h3>Pending link suggestions</h3>
+  <p>
+    A record that mentions a known project with no edge to its own queues a <strong>pending link
+    suggestion</strong>. The queue returns with every project-scoped <code class="inline">recall</code>
+    and with <code class="inline">init_project_memory</code> until each pair is resolved:
+    <code class="inline">link_projects</code> confirms the relation,
+    <code class="inline">dismiss_link</code> rejects it permanently — there is no third state, so
+    relations named in conversation stop getting lost. A <strong>background audit</strong> completes
+    the picture: once per interval (<code class="inline">AUDIT_INTERVAL_DAYS</code>) the server
+    re-scans older records behind an atomic database lease — however many agents share one database,
+    the audit runs exactly once.
+  </p>
 
   <h3>Integration: copy two things from the repo</h3>
   <p>
