@@ -1,5 +1,3 @@
-using Snail.MCP.Memory.Core.Utilities;
-
 namespace Snail.MCP.Memory.Tests.Core;
 
 /// Project identity is a Core notion, so only normalization and comparison are covered here.

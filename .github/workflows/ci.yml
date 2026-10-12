@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - run: dotnet test Snail.MCP.Memory.sln -c Release
+      - run: dotnet test Snail.MCP.Memory.slnx -c Release
 
   published:
     runs-on: ubuntu-latest

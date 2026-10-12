@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Toolkit.Mcp.Http;

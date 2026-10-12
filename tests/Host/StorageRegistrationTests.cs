@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Snail.MCP.Memory.Application;
 using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Infrastructure.Embeddings;

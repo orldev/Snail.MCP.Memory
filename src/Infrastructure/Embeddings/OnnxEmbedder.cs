@@ -150,8 +150,8 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
         var ones = new long[length];
         Array.Fill(ones, 1L);
 
-        var inputIds = new DenseTensor<long>(ids, new[] { 1, length });
-        var attentionMask = new DenseTensor<long>(ones, new[] { 1, length });
+        var inputIds = new DenseTensor<long>(ids, [1, length]);
+        var attentionMask = new DenseTensor<long>(ones, [1, length]);
 
         var inputs = new List<NamedOnnxValue>
         {
@@ -160,7 +160,7 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
         };
 
         if (_sessionWantsTokenTypes)
-            inputs.Add(NamedOnnxValue.CreateFromTensor("token_type_ids", new DenseTensor<long>(new long[length], new[] { 1, length })));
+            inputs.Add(NamedOnnxValue.CreateFromTensor("token_type_ids", new DenseTensor<long>(new long[length], [1, length])));
 
         using var results = _session!.Run(inputs);
         var hidden = results[0].AsTensor<float>();

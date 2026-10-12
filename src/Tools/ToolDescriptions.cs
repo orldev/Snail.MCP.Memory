@@ -1,5 +1,3 @@
-using Snail.MCP.Memory.Infrastructure.Configuration;
-
 namespace Snail.MCP.Memory.Tools;
 
 /// <summary>Description text of every tool and shared parameter.</summary>

@@ -38,16 +38,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="CommunityToolkit.VectorData.PgVector" Version="1.0.0" />
-      <PackageReference Include="CommunityToolkit.VectorData.SqliteVec" Version="1.0.1-preview" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
-      <PackageReference Include="Snail.Toolkit.Mcp.Hosting" Version="0.1.0-preview.1" />
-      <PackageReference Include="Snail.Toolkit.Mcp.Build" Version="0.1.0-preview.1" PrivateAssets="all" />
-      <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
-      <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
-      <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
-      <PackageReference Include="Snail.Toolkit.Mcp.Http" Version="0.1.0-preview.1" />
-      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+      <PackageReference Include="CommunityToolkit.VectorData.PgVector" />
+      <PackageReference Include="CommunityToolkit.VectorData.SqliteVec" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Hosting" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Build" PrivateAssets="all" />
+      <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+      <PackageReference Include="Microsoft.ML.Tokenizers" />
+      <PackageReference Include="ModelContextProtocol" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Http" />
+      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     </ItemGroup>
 
     <ItemGroup>
