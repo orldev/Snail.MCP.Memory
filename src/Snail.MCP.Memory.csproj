@@ -46,12 +46,8 @@
       <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
       <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
       <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
-      <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Http" Version="0.1.0-preview.1" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
     <ItemGroup>

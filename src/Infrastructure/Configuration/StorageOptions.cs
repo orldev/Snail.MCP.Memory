@@ -119,15 +119,8 @@ public sealed class StorageOptions
         return builder.AddEnvironment().Build().Get<StorageOptions>() ?? new StorageOptions();
     }
 
-    /// <summary>The address to listen on; anything but a loopback address is refused, since nothing guards the endpoint.</summary>
-    public Uri ResolveUrl()
-    {
-        var url = string.IsNullOrWhiteSpace(Url) ? DefaultUrl : Url.Trim();
-
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.IsLoopback
-            ? uri
-            : throw new InvalidOperationException($"Url '{url}' is not a loopback address: the HTTP server answers anyone who reaches it.");
-    }
+    /// <summary>The address to listen on; the host refuses any that is not a loopback one.</summary>
+    public Uri ResolveUrl() => new(string.IsNullOrWhiteSpace(Url) ? DefaultUrl : Url.Trim(), UriKind.Absolute);
 
     /// <summary>Configured directory or the default one, with a leading <c>~</c> expanded.</summary>
     public string ResolveDirectory() => ServerPaths.ExpandHome(Directory);
