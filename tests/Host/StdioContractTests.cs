@@ -122,15 +122,17 @@ public class StdioContractTests
         public static async Task<ServerSession> StartAsync()
         {
             var dataDirectory = Path.Combine(Path.GetTempPath(), $"snail-stdio-{Guid.NewGuid().ToString("N")[..8]}");
+            var (command, arguments) = Snail.Toolkit.Mcp.Testing.ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
             var start = new ProcessStartInfo
             {
-                FileName = "dotnet",
+                FileName = command,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
 
-            start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "Snail.MCP.Memory.dll"));
+            foreach (var argument in arguments)
+                start.ArgumentList.Add(argument);
             start.Environment[EnvironmentSettings.Prefix + "DIRECTORY"] = dataDirectory;
             start.Environment[EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false";
             start.Environment.Remove(EnvironmentSettings.ConfigPathVariable);

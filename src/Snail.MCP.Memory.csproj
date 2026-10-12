@@ -6,6 +6,11 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RollForward>LatestMajor</RollForward>
+        <!--
+            Published into ~/.snail-mcp with -p:Install=true (Snail.Toolkit.Mcp.Build), framework-dependent: Entity
+            Framework and the ONNX runtime keep it from being a native program.
+        -->
+        <SnailMcpName>Snail.MCP.Memory</SnailMcpName>
 <!--        <Version>0.1.1</Version>-->
     </PropertyGroup>
 
@@ -34,7 +39,8 @@
       <PackageReference Include="CommunityToolkit.VectorData.PgVector" Version="1.0.0" />
       <PackageReference Include="CommunityToolkit.VectorData.SqliteVec" Version="1.0.1-preview" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
-      <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Hosting" Version="0.1.0-preview.1" />
+      <PackageReference Include="Snail.Toolkit.Mcp.Build" Version="0.1.0-preview.1" PrivateAssets="all" />
       <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
       <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
       <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
