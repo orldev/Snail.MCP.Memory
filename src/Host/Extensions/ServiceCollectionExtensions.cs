@@ -5,6 +5,7 @@ using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Core.Activity;
 using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Extensions;
@@ -70,7 +71,7 @@ public static class ServiceCollectionExtensions
 
         private IMcpServerBuilder AddMemoryServer() =>
             services
-                .AddMcpServer()
+                .AddMcpServer(server => server.ServerInfo = ServerIdentity.Of(typeof(ServiceCollectionExtensions).Assembly))
                 .WithToolsFromAssembly()
                 .WithRequestFilters(filters => filters
                     .AddCallToolFilter(TouchActivity));

@@ -33,7 +33,7 @@ public class StdioContractTests
 
         var serverInfo = initialize.GetProperty("result").GetProperty("serverInfo");
 
-        Assert.Equal("Snail.MCP.Memory", serverInfo.GetProperty("name").GetString());
+        Assert.Equal("s3l-mcp-memory", serverInfo.GetProperty("name").GetString());
         Assert.False(string.IsNullOrWhiteSpace(serverInfo.GetProperty("version").GetString()));
 
         await session.NotifyAsync("notifications/initialized");

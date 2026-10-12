@@ -303,7 +303,7 @@
     <div class="n">1</div>
     <div>
       <h3>Install</h3>
-      <p>Needs the <a href="https://dotnet.microsoft.com/download">.NET 10 SDK</a>. This puts the <code class="inline">snail-mcp-memory</code> command on your PATH (<code class="inline">~/.dotnet/tools</code> — the .NET installer takes care of it):</p>
+      <p>Needs the <a href="https://dotnet.microsoft.com/download">.NET 10 SDK</a>. This puts the <code class="inline">s3l-mcp-memory</code> command on your PATH (<code class="inline">~/.dotnet/tools</code> — the .NET installer takes care of it):</p>
       <div class="codebox">
         <div class="bar"><span>shell — dotnet tool</span><button data-copy>copy</button></div>
         <pre>dotnet tool install --global Snail.MCP.Memory --prerelease</pre>
@@ -319,7 +319,7 @@
       <p>For Claude Code, one command; other clients are a few lines of JSON — see <a href="#clients">Clients</a>.</p>
       <div class="codebox">
         <div class="bar"><span>shell</span><button data-copy>copy</button></div>
-        <pre>claude mcp add mem0 --scope user -- snail-mcp-memory</pre>
+        <pre>claude mcp add mem0 --scope user -- s3l-mcp-memory</pre>
       </div>
     </div>
   </div>
@@ -337,7 +337,7 @@
       </p>
       <div class="note">
         <b>First run:</b> the embedding model (~123&nbsp;MB) is downloaded once into
-        <code class="inline">~/.snail-mcp-memory/models/</code>. Until it arrives — or on machines where it
+        <code class="inline">~/.s3l-mcp-memory/models/</code>. Until it arrives — or on machines where it
         never can — everything still works, with text search instead of semantic search.
       </div>
     </div>
@@ -346,7 +346,7 @@
 
 <section id="clients">
   <h2>Connecting to a client</h2>
-  <p class="lead">The server speaks stdio: every client config boils down to "run <code class="inline">snail-mcp-memory</code>" (or <code class="inline">dnx Snail.MCP.Memory --yes --prerelease</code> to skip installation). The examples register it as <code class="inline">mem0</code> — the slash commands in the repo pre-approve tools under that name. Zero configuration required — settings only change the defaults.</p>
+  <p class="lead">The server speaks stdio: every client config boils down to "run <code class="inline">s3l-mcp-memory</code>" (or <code class="inline">dnx Snail.MCP.Memory --yes --prerelease</code> to skip installation). The examples register it as <code class="inline">mem0</code> — the slash commands in the repo pre-approve tools under that name. Zero configuration required — settings only change the defaults.</p>
 
   <h3>Claude Code — <code class="inline">.mcp.json</code></h3>
   <div class="codebox">
@@ -354,7 +354,7 @@
     <pre>{
   <span class="k">"mcpServers"</span>: {
     <span class="k">"mem0"</span>: {
-      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>
+      <span class="k">"command"</span>: <span class="s">"s3l-mcp-memory"</span>
     }
   }
 }</pre>
@@ -365,7 +365,7 @@
   <p>
     macOS: <code class="inline">~/Library/Application Support/Claude/claude_desktop_config.json</code> ·
     Windows: <code class="inline">%APPDATA%\Claude\claude_desktop_config.json</code> — same JSON as above.
-    If the command is not found, use the full path <code class="inline">/Users/&lt;you&gt;/.dotnet/tools/snail-mcp-memory</code>.
+    If the command is not found, use the full path <code class="inline">/Users/&lt;you&gt;/.dotnet/tools/s3l-mcp-memory</code>.
   </p>
 
   <h3>VS Code — <code class="inline">.vscode/mcp.json</code></h3>
@@ -375,7 +375,7 @@
   <span class="k">"servers"</span>: {
     <span class="k">"mem0"</span>: {
       <span class="k">"type"</span>: <span class="s">"stdio"</span>,
-      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>
+      <span class="k">"command"</span>: <span class="s">"s3l-mcp-memory"</span>
     }
   }
 }</pre>
@@ -393,15 +393,15 @@
     <pre>{
   <span class="k">"mcpServers"</span>: {
     <span class="k">"mem0"</span>: {
-      <span class="k">"command"</span>: <span class="s">"snail-mcp-memory"</span>,
+      <span class="k">"command"</span>: <span class="s">"s3l-mcp-memory"</span>,
       <span class="k">"env"</span>: {
         <span class="k">"SNAIL_MCP_MEMORY_PROVIDER"</span>: <span class="s">"Sqlite"</span>,
-        <span class="k">"SNAIL_MCP_MEMORY_DIRECTORY"</span>: <span class="s">"~/.snail-mcp-memory"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_DIRECTORY"</span>: <span class="s">"~/.s3l-mcp-memory"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_CONNECTION_STRING"</span>: <span class="s">""</span>,
         <span class="k">"SNAIL_MCP_MEMORY_WORKSPACE"</span>: <span class="s">""</span>,
         <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_ENABLED"</span>: <span class="s">"true"</span>,
-        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH"</span>: <span class="s">"~/.snail-mcp-memory/models/model.onnx"</span>,
-        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH"</span>: <span class="s">"~/.snail-mcp-memory/models/sentencepiece.bpe.model"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH"</span>: <span class="s">"~/.s3l-mcp-memory/models/model.onnx"</span>,
+        <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH"</span>: <span class="s">"~/.s3l-mcp-memory/models/sentencepiece.bpe.model"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL"</span>: <span class="s">"https://huggingface.co/Xenova/multilingual-e5-small/resolve/main/onnx/model_quantized.onnx"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL"</span>: <span class="s">"https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentencepiece.bpe.model"</span>,
         <span class="k">"SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS"</span>: <span class="s">"384"</span>,
@@ -416,9 +416,9 @@
   </div>
   <p>
     The same keys — bare names, without the prefix — can live in a JSON file instead:
-    <code class="inline">~/.snail-mcp-memory.json</code> (also read: the path in
-    <code class="inline">SNAIL_MCP_MEMORY_CONFIG</code>, <code class="inline">./.snail-mcp-memory.json</code>,
-    <code class="inline">./snail-mcp-memory.json</code>, <code class="inline">~/.config/snail-mcp-memory/config.json</code>).
+    <code class="inline">~/.s3l-mcp-memory.json</code> (also read: the path in
+    <code class="inline">SNAIL_MCP_MEMORY_CONFIG</code>, <code class="inline">./.s3l-mcp-memory.json</code>,
+    <code class="inline">./s3l-mcp-memory.json</code>, <code class="inline">~/.config/s3l-mcp-memory/config.json</code>; each <code class="inline">snail-mcp-memory</code> name of before is still read after its <code class="inline">s3l-mcp-memory</code> one).
     Environment variables win over the file.
   </p>
 
@@ -427,7 +427,7 @@
       <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td><code>PROVIDER</code></td><td class="def">Sqlite</td><td><code>Sqlite</code> — single local file with sqlite-vec; <code>Postgres</code> — server database with pgvector</td></tr>
-        <tr><td><code>DIRECTORY</code></td><td class="def">~/.snail-mcp-memory</td><td>where the database and the models live; understands a leading <code>~</code></td></tr>
+        <tr><td><code>DIRECTORY</code></td><td class="def">~/.s3l-mcp-memory</td><td>where the database and the models live; understands a leading <code>~</code></td></tr>
         <tr><td><code>CONNECTION_STRING</code></td><td class="def">—</td><td>SQLite: a file path or <code>Data Source=…</code> (default <code>{Directory}/memory.db</code>). PostgreSQL: the full connection string, <strong>required</strong></td></tr>
         <tr><td><code>WORKSPACE</code></td><td class="def">(empty)</td><td>partition of a shared database: writes are tagged with it, reads see only it; empty — the whole base</td></tr>
         <tr><td><code>EMBEDDING_ENABLED</code></td><td class="def">true</td><td><code>false</code> turns semantic search off; recall falls back to text matching</td></tr>
@@ -555,7 +555,7 @@
         <tr><td>✈️ <strong>Offline</strong></td><td>after the one-time model download the server needs no network at all</td></tr>
         <tr><td>⏳ <strong>Lifecycle</strong></td><td><code>event</code> records expire after 90 days; durable kinds are only deleted by an explicit, confirmed <code>forget</code></td></tr>
         <tr><td>🧯 <strong>Housekeeping</strong></td><td>an orphaned server process shuts itself down after an hour of silence (<code>IDLE_TIMEOUT_MINUTES</code>)</td></tr>
-        <tr><td>🗄️ <strong>Your data</strong></td><td>one SQLite file at <code>~/.snail-mcp-memory/memory.db</code>, inspectable with any SQLite browser</td></tr>
+        <tr><td>🗄️ <strong>Your data</strong></td><td>one SQLite file at <code>~/.s3l-mcp-memory/memory.db</code>, inspectable with any SQLite browser</td></tr>
       </tbody>
     </table>
   </div>

@@ -1,21 +1,23 @@
+using Snail.Sdk.Mcp.Hosting;
+
 namespace Snail.MCP.Memory.Infrastructure.Configuration;
 
 /// <summary>Paths where the server looks for its configuration and keeps its data.</summary>
 public static class ServerPaths
 {
-    /// <summary>Data directory name in the user profile.</summary>
-    public const string DataDirectoryName = ".snail-mcp-memory";
-
     /// <summary>Config file name looked up in the working directory and in the profile.</summary>
-    public const string ConfigFileName = "snail-mcp-memory.json";
+    public const string ConfigFileName = "s3l-mcp-memory.json";
+
+    /// <summary>The config file's name before the s3l names, still read after <see cref="ConfigFileName"/>.</summary>
+    public const string FormerConfigFileName = "snail-mcp-memory.json";
 
     /// <summary>User profile directory, resolved without touching the disk.</summary>
     public static string Home => Environment.GetFolderPath(
         Environment.SpecialFolder.UserProfile,
         Environment.SpecialFolderOption.DoNotVerify);
 
-    /// <summary><c>~/.snail-mcp-memory</c>.</summary>
-    public static string DefaultDataDirectory => Path.Combine(Home, DataDirectoryName);
+    /// <summary><c>~/.s3l-mcp-memory</c>, moved there from <c>~/.snail-mcp-memory</c> when only that one exists.</summary>
+    public static string DefaultDataDirectory => ServerFolders.DataDirectory("memory");
 
     /// <summary>Config lookup chain, highest priority first; <c>SNAIL_MCP_MEMORY_CONFIG</c> overrides everything.</summary>
     public static IEnumerable<string> ConfigCandidates()
@@ -29,11 +31,17 @@ public static class ServerPaths
 
         yield return Path.Combine(workingDirectory, $".{ConfigFileName}");
 
+        yield return Path.Combine(workingDirectory, $".{FormerConfigFileName}");
+
         yield return Path.Combine(workingDirectory, ConfigFileName);
 
-        yield return Path.Combine(Home, ".config", "snail-mcp-memory", "config.json");
+        yield return Path.Combine(workingDirectory, FormerConfigFileName);
+
+        yield return Path.Combine(ServerFolders.ConfigDirectory("memory"), "config.json");
 
         yield return Path.Combine(Home, $".{ConfigFileName}");
+
+        yield return Path.Combine(Home, $".{FormerConfigFileName}");
     }
 
     /// <summary>First existing file from <see cref="ConfigCandidates"/>, or <c>null</c>.</summary>

@@ -13,8 +13,7 @@
             mode string normalization leaves compatibility characters as they are, so the same text would embed differently.
         -->
         <InvariantGlobalization>false</InvariantGlobalization>
-        <!-- One server for every session, kept running by launchd: deploy/com.snail.mcp.memory.plist. -->
-        <SnailMcpLaunchAgent>$(MSBuildProjectDirectory)/../deploy/com.snail.mcp.memory.plist</SnailMcpLaunchAgent>
+        <!-- One server for every session, kept running by launchd: deploy/s3l.mcp.memory.plist, found by its name. -->
 <!--        <Version>0.1.1</Version>-->
     </PropertyGroup>
 

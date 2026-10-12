@@ -21,14 +21,14 @@ Everything runs on your machine: a single SQLite file and an in-process embeddin
 dotnet tool install --global Snail.MCP.Memory --prerelease
 ```
 
-This gives you the `snail-mcp-memory` command (`~/.dotnet/tools` must be on `PATH` — the .NET installer puts it there). Update later with `dotnet tool update --global Snail.MCP.Memory --prerelease`.
+This gives you the `s3l-mcp-memory` command (`~/.dotnet/tools` must be on `PATH` — the .NET installer puts it there). Update later with `dotnet tool update --global Snail.MCP.Memory --prerelease`.
 
 *Alternative, no install:* the SDK ships the `dnx` runner — `dnx Snail.MCP.Memory --yes --prerelease` fetches the package from NuGet on first use, caches it and runs it.
 
 **2. Connect** it to your client under the name `mem0` (details per client below):
 
 ```bash
-claude mcp add mem0 --scope user -- snail-mcp-memory
+claude mcp add mem0 --scope user -- s3l-mcp-memory
 ```
 
 **3. Use it.** In your next session say something like:
@@ -37,16 +37,16 @@ claude mcp add mem0 --scope user -- snail-mcp-memory
 
 The agent calls `init_project_memory`, and if your memory already knows similar projects, the reply includes a briefing: which past projects look alike and what lessons they carry. From then on the agent saves decisions and lessons as you work and recalls them when they matter.
 
-On the very first semantically-searched call the server downloads the embedding model (~123 MB, once, into `~/.snail-mcp-memory/models/`). Until it arrives — and on machines where it never can — everything still works, with text search instead of semantic search.
+On the very first semantically-searched call the server downloads the embedding model (~123 MB, once, into `~/.s3l-mcp-memory/models/`). Until it arrives — and on machines where it never can — everything still works, with text search instead of semantic search.
 
 ## Connecting to a client
 
-The server is a stdio MCP server: every client config boils down to "run the server command" — `snail-mcp-memory` (the global tool), or `dnx Snail.MCP.Memory --yes --prerelease` to skip installation. The examples below register it as `mem0`; the name is yours to choose, but the slash commands in this repo pre-approve tools under `mem0`. Zero configuration is required — settings only change the defaults.
+The server is a stdio MCP server: every client config boils down to "run the server command" — `s3l-mcp-memory` (the global tool), or `dnx Snail.MCP.Memory --yes --prerelease` to skip installation. The examples below register it as `mem0`; the name is yours to choose, but the slash commands in this repo pre-approve tools under `mem0`. Zero configuration is required — settings only change the defaults.
 
 ### Claude Code
 
 ```bash
-claude mcp add mem0 --scope user -- snail-mcp-memory
+claude mcp add mem0 --scope user -- s3l-mcp-memory
 ```
 
 Or in `.mcp.json` at the project root:
@@ -55,7 +55,7 @@ Or in `.mcp.json` at the project root:
 {
   "mcpServers": {
     "mem0": {
-      "command": "snail-mcp-memory"
+      "command": "s3l-mcp-memory"
     }
   }
 }
@@ -71,13 +71,13 @@ Config file: macOS — `~/Library/Application Support/Claude/claude_desktop_conf
 {
   "mcpServers": {
     "mem0": {
-      "command": "snail-mcp-memory"
+      "command": "s3l-mcp-memory"
     }
   }
 }
 ```
 
-If the client cannot find the command, use the full path: `/Users/<you>/.dotnet/tools/snail-mcp-memory` (with `dnx` — its full path next to `dotnet`).
+If the client cannot find the command, use the full path: `/Users/<you>/.dotnet/tools/s3l-mcp-memory` (with `dnx` — its full path next to `dotnet`).
 
 ### VS Code
 
@@ -88,7 +88,7 @@ If the client cannot find the command, use the full path: `/Users/<you>/.dotnet/
   "servers": {
     "mem0": {
       "type": "stdio",
-      "command": "snail-mcp-memory"
+      "command": "s3l-mcp-memory"
     }
   }
 }
@@ -102,15 +102,15 @@ All settings are optional environment variables. This example lists **all of the
 {
   "mcpServers": {
     "mem0": {
-      "command": "snail-mcp-memory",
+      "command": "s3l-mcp-memory",
       "env": {
         "SNAIL_MCP_MEMORY_PROVIDER": "Sqlite",
-        "SNAIL_MCP_MEMORY_DIRECTORY": "~/.snail-mcp-memory",
+        "SNAIL_MCP_MEMORY_DIRECTORY": "~/.s3l-mcp-memory",
         "SNAIL_MCP_MEMORY_CONNECTION_STRING": "",
         "SNAIL_MCP_MEMORY_WORKSPACE": "",
         "SNAIL_MCP_MEMORY_EMBEDDING_ENABLED": "true",
-        "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH": "~/.snail-mcp-memory/models/model.onnx",
-        "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH": "~/.snail-mcp-memory/models/sentencepiece.bpe.model",
+        "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_PATH": "~/.s3l-mcp-memory/models/model.onnx",
+        "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH": "~/.s3l-mcp-memory/models/sentencepiece.bpe.model",
         "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL": "https://huggingface.co/Xenova/multilingual-e5-small/resolve/main/onnx/model_quantized.onnx",
         "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL": "https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentencepiece.bpe.model",
         "SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS": "384",
@@ -124,7 +124,7 @@ All settings are optional environment variables. This example lists **all of the
 }
 ```
 
-The same keys can live in a JSON file instead — `~/.snail-mcp-memory.json` (also read: `SNAIL_MCP_MEMORY_CONFIG` path, `./.snail-mcp-memory.json`, `./snail-mcp-memory.json`, `~/.config/snail-mcp-memory/config.json`) — with bare names inside:
+The same keys can live in a JSON file instead — `~/.s3l-mcp-memory.json` (also read: `SNAIL_MCP_MEMORY_CONFIG` path, `./.s3l-mcp-memory.json`, `./s3l-mcp-memory.json`, `~/.config/s3l-mcp-memory/config.json`; each `snail-mcp-memory` name of before is still read after its `s3l-mcp-memory` one) — with bare names inside:
 
 ```json
 {
@@ -141,7 +141,7 @@ Environment variables win over the file.
 | Setting | Default | Meaning |
 |---|---|---|
 | `PROVIDER` | `Sqlite` | Storage backend: `Sqlite` (single local file, [sqlite-vec](https://github.com/asg017/sqlite-vec)) or `Postgres` (server database, [pgvector](https://github.com/pgvector/pgvector)) |
-| `DIRECTORY` | `~/.snail-mcp-memory` | Where the database and the models live; understands a leading `~` |
+| `DIRECTORY` | `~/.s3l-mcp-memory` | Where the database and the models live; understands a leading `~` |
 | `CONNECTION_STRING` | — | SQLite: a file path or `Data Source=...` (default `{Directory}/memory.db`). PostgreSQL: the full connection string, **required** |
 | `WORKSPACE` | *(empty)* | Partition of a shared database: your writes are tagged with it, your reads see only it. Empty — the whole base. See [Sharing one database](#sharing-one-database) |
 | `EMBEDDING_ENABLED` | `true` | `false` turns semantic search off; records are stored without vectors and recall falls back to text matching |
@@ -204,16 +204,16 @@ connection each time, ~115 MB per session. With `TRANSPORT=Http` one server answ
 136 MB together, and a new session is answered in 12 ms instead of ~160.
 
 On macOS launchd keeps it running. Publishing with `-p:Install=true` writes the job, with this machine's paths, to
-`~/.snail-mcp/Snail.MCP.Memory/com.snail.mcp.memory.plist` (from [deploy/](deploy/com.snail.mcp.memory.plist)) and
+`~/.s3l-mcp/Snail.MCP.Memory/s3l.mcp.memory.plist` (from [deploy/](deploy/s3l.mcp.memory.plist)) and
 restarts it when it is loaded. Loading it is done once:
 
 ```bash
-cp ~/.snail-mcp/Snail.MCP.Memory/com.snail.mcp.memory.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.snail.mcp.memory.plist
+cp ~/.s3l-mcp/Snail.MCP.Memory/s3l.mcp.memory.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/s3l.mcp.memory.plist
 claude mcp add -s user --transport http mem0 http://127.0.0.1:9230/mcp
 ```
 
-Settings other than the transport go into `~/.config/snail-mcp-memory/config.json`. `init_project_memory` without a
+Settings other than the transport go into `~/.config/s3l-mcp-memory/config.json`. `init_project_memory` without a
 name asks the client for the folder it works in (MCP roots), since the server's own folder is nobody's project. The
 endpoint has no key: it listens on loopback only and refuses any request that carries an `Origin`, which every
 browser page sends and no agent client does.
@@ -244,7 +244,7 @@ Nothing else changes — same tools, same behavior, tables and vector indexes ar
 - **Offline**: after the one-time model download the server needs no network at all.
 - **Lifecycle**: `event` records expire after 90 days; durable kinds are only ever deleted by an explicit, confirmed `forget`.
 - **Housekeeping**: an orphaned server process shuts itself down after an hour of silence (`IDLE_TIMEOUT_MINUTES`).
-- **Your data** is yours: one SQLite file at `~/.snail-mcp-memory/memory.db`, inspectable with any SQLite browser.
+- **Your data** is yours: one SQLite file at `~/.s3l-mcp-memory/memory.db`, inspectable with any SQLite browser.
 
 ## Development
 
@@ -253,11 +253,11 @@ dotnet test          # SQLite suite; PostgreSQL contract tests run when a Docker
 dotnet pack src -c Release -o out
 ```
 
-Published from the repository beside the other Snail MCP servers, it lives in `~/.snail-mcp/Snail.MCP.Memory`, and
+Published from the repository beside the other Snail MCP servers, it lives in `~/.s3l-mcp/Snail.MCP.Memory`, and
 `current` follows every later publication. It stays framework-dependent: Entity Framework and the ONNX runtime keep it
 from being a native program.
 
 ```bash
 dotnet publish src -c Release -p:Install=true
-claude mcp add -s user mem0 -e SNAIL_MCP_MEMORY_PROVIDER=Sqlite -e SNAIL_MCP_MEMORY_DIRECTORY=~/.csharp-tools-memory -- dotnet ~/.snail-mcp/Snail.MCP.Memory/current/Snail.MCP.Memory.dll
+claude mcp add -s user mem0 -e SNAIL_MCP_MEMORY_PROVIDER=Sqlite -e SNAIL_MCP_MEMORY_DIRECTORY=~/.csharp-tools-memory -- dotnet ~/.s3l-mcp/Snail.MCP.Memory/current/Snail.MCP.Memory.dll
 ```
