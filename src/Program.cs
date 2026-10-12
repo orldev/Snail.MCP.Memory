@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Snail.MCP.Memory.Host.Extensions;
+using Snail.Toolkit.Mcp.Hosting;
 
-await Host.CreateApplicationBuilder(args)
+await McpHost.CreateBuilder(args)
     .ConfigureMcpServer()
     .Build()
     .RunAsync();

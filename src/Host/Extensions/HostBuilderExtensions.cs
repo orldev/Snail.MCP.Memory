@@ -15,8 +15,6 @@ public static class HostBuilderExtensions
         /// </summary>
         public HostApplicationBuilder ConfigureMcpServer()
         {
-            builder.Logging.AddMcpStdioLogging();
-
             var options = StorageOptions.Load();
 
             builder.Services
