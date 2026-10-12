@@ -32,7 +32,7 @@ public static class HttpServerHost
     {
         var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions { Args = args });
 
-        builder.Logging.UseStderr();
+        builder.Logging.UseStderr().AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
         builder.WebHost.UseKestrelCore().UseUrls(options.ResolveUrl().ToString());
         builder.Services.AddRoutingCore();
         builder.Services
