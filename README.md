@@ -229,3 +229,12 @@ Nothing else changes — same tools, same behavior, tables and vector indexes ar
 dotnet test          # SQLite suite; PostgreSQL contract tests run when a Docker daemon is reachable (Testcontainers, pgvector image)
 dotnet pack src -c Release -o out
 ```
+
+Published from the repository beside the other Snail MCP servers, it lives in `~/.snail-mcp/Snail.MCP.Memory`, and
+`current` follows every later publication. It stays framework-dependent: Entity Framework and the ONNX runtime keep it
+from being a native program.
+
+```bash
+dotnet publish src -c Release -p:Install=true
+claude mcp add -s user mem0 -e SNAIL_MCP_MEMORY_PROVIDER=Sqlite -e SNAIL_MCP_MEMORY_DIRECTORY=~/.csharp-tools-memory -- dotnet ~/.snail-mcp/Snail.MCP.Memory/current/Snail.MCP.Memory.dll
+```
