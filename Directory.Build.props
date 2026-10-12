@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Migration debt: rules of the shared .editorconfig this repository does not meet yet (CS1591: 1 member in src and
+       131 in tests, CS1573: 8 parameters, IDE1006: 1 member, the init_project_memory tool method without the Async
+       suffix; latent while GenerateDocumentationFile and EnforceCodeStyleInBuild are off), removed when it moves onto
+       Snail.Sdk (Toolkit/Snail.Sdk/docs/standard.md). -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS1591;CS1573;IDE1006</NoWarn>
+  </PropertyGroup>
+
+</Project>

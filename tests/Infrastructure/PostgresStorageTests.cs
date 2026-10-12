@@ -1,7 +1,6 @@
 using CommunityToolkit.VectorData.PgVector;
 using Microsoft.EntityFrameworkCore;
 using Snail.MCP.Memory.Infrastructure.Persistence;
-using Snail.MCP.Memory.Tests.TestDoubles;
 using Testcontainers.PostgreSql;
 
 namespace Snail.MCP.Memory.Tests.Infrastructure;

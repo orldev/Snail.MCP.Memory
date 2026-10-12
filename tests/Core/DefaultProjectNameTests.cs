@@ -1,5 +1,3 @@
-using Snail.MCP.Memory.Core.Utilities;
-
 namespace Snail.MCP.Memory.Tests.Core;
 
 /// The working directory is what makes init_project_memory usable without arguments, so the two
