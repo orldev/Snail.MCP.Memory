@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Toolkit.Mcp.Hosting;
