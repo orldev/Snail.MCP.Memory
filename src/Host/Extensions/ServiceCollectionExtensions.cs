@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Core.Activity;
 using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Toolkit.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Extensions;
 
@@ -64,8 +64,7 @@ public static class ServiceCollectionExtensions
         /// <c>init_project_memory</c> finds the project of a client it did not start in.</remarks>
         public IServiceCollection AddMcpHttpTransport()
         {
-            services.AddMemoryServer().WithHttpTransport(options =>
-                options.SessionMode = HttpServerSessionMode.StatefulForInitializeClients);
+            services.AddMemoryServer().WithLocalHttpTransport();
 
             return services;
         }
