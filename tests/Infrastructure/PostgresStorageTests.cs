@@ -36,11 +36,11 @@ public sealed class PostgresStorageTests : IAsyncLifetime
             return;
         }
 
-        var connectionString = _container!.GetConnectionString();
-        var options = new DbContextOptionsBuilder<MemoryDbContext>().UseNpgsql(connectionString).Options;
+        var connection = _container!.GetConnectionString();
+        var options = new DbContextOptionsBuilder<MemoryDbContext>().UseNpgsql(connection).Options;
         _database = new MemoryDb(new Factory(options));
         _records = new VectorRecordStore(
-            new PostgresCollection<string, RecordEntity>(connectionString, VectorRecordStore.CollectionName,
+            new PostgresCollection<string, RecordEntity>(connection, VectorRecordStore.CollectionName,
                 new PostgresCollectionOptions { Definition = RecordEntity.Definition(Dimensions) }),
             Dimensions, workspace: "");
     }
@@ -87,14 +87,14 @@ public sealed class PostgresStorageTests : IAsyncLifetime
         var projects = new EfProjectStore(_database!, workspace: "");
         var graph = new EfGraphStore(_database!, workspace: "");
 
-        Assert.True(await projects.CreateAsync(new ProjectInfo("Alpha", "a description", DateTimeOffset.UtcNow)));
-        Assert.False(await projects.CreateAsync(new ProjectInfo("alpha", "", DateTimeOffset.UtcNow)));
-        Assert.True(await projects.CreateAsync(new ProjectInfo("Beta", "", DateTimeOffset.UtcNow)));
+        Assert.True(await projects.TryCreateAsync(new ProjectInfo("Alpha", "a description", DateTimeOffset.UtcNow)));
+        Assert.False(await projects.TryCreateAsync(new ProjectInfo("alpha", "", DateTimeOffset.UtcNow)));
+        Assert.True(await projects.TryCreateAsync(new ProjectInfo("Beta", "", DateTimeOffset.UtcNow)));
 
-        Assert.True(await graph.UpsertAsync(new GraphEdge("Alpha", "Beta", LinkTypes.Uses, "runtime", DateTimeOffset.UtcNow)));
-        Assert.False(await graph.UpsertAsync(new GraphEdge("alpha", "beta", LinkTypes.Uses, "updated", DateTimeOffset.UtcNow)));
+        Assert.True(await graph.TryInsertAsync(new GraphEdge("Alpha", "Beta", LinkTypes.Uses, "runtime", DateTimeOffset.UtcNow)));
+        Assert.False(await graph.TryInsertAsync(new GraphEdge("alpha", "beta", LinkTypes.Uses, "updated", DateTimeOffset.UtcNow)));
 
-        Assert.True(await projects.RenameAsync("alpha", "Gamma"));
+        Assert.True(await projects.TryRenameAsync("alpha", "Gamma"));
         Assert.Equal(1, await graph.RenameProjectAsync("alpha", "Gamma"));
 
         var edge = Assert.Single(await graph.GetForProjectsAsync(["gamma"]));

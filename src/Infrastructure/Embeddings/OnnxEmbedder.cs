@@ -14,7 +14,14 @@ namespace Snail.MCP.Memory.Infrastructure.Embeddings;
 /// XLM-RoBERTa quirks handled here: SentencePiece ids carry the fairseq offset, and e5 needs
 /// <c>query:</c>/<c>passage:</c> prefixes.
 /// </remarks>
-public sealed class OnnxEmbedder : IEmbedder, IDisposable
+/// <param name="modelPath">Where the ONNX model lives, or is downloaded to.</param>
+/// <param name="tokenizerPath">Where the SentencePiece tokenizer lives, or is downloaded to.</param>
+/// <param name="modelUrl">Where the model is downloaded from when it is missing.</param>
+/// <param name="tokenizerUrl">Where the tokenizer is downloaded from when it is missing.</param>
+/// <param name="dimensions">The length of the vectors the model answers.</param>
+/// <param name="logger">Where the one failure is told; nowhere when omitted.</param>
+public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string modelUrl, string tokenizerUrl,
+    int dimensions, ILogger? logger = null) : IEmbedder, IDisposable
 {
     private const string QueryPrefix = "query: ";
     private const string PassagePrefix = "passage: ";
@@ -27,11 +34,11 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
     private const long UnknownId = 3;
     private const long FairseqOffset = 1;
 
-    private readonly string _modelPath;
-    private readonly string _tokenizerPath;
-    private readonly string _modelUrl;
-    private readonly string _tokenizerUrl;
-    private readonly ILogger _logger;
+    private readonly string _modelPath = modelPath;
+    private readonly string _tokenizerPath = tokenizerPath;
+    private readonly string _modelUrl = modelUrl;
+    private readonly string _tokenizerUrl = tokenizerUrl;
+    private readonly ILogger _logger = logger ?? NullLogger.Instance;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
     private InferenceSession? _session;
@@ -48,20 +55,8 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
     {
     }
 
-    /// <summary>Creates the embedder from explicit paths — the constructor tests use.</summary>
-    public OnnxEmbedder(string modelPath, string tokenizerPath, string modelUrl, string tokenizerUrl,
-        int dimensions, ILogger? logger = null)
-    {
-        _modelPath = modelPath;
-        _tokenizerPath = tokenizerPath;
-        _modelUrl = modelUrl;
-        _tokenizerUrl = tokenizerUrl;
-        Dimensions = dimensions;
-        _logger = logger ?? NullLogger.Instance;
-    }
-
     /// <inheritdoc />
-    public int Dimensions { get; }
+    public int Dimensions { get; } = dimensions;
 
     /// <inheritdoc />
     public async ValueTask<ReadOnlyMemory<float>?> TryEmbedAsync(string text, EmbeddingPurpose purpose, CancellationToken cancellationToken = default)
@@ -69,7 +64,7 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
         if (_failed)
             return null;
 
-        if (!await EnsureReadyAsync(cancellationToken))
+        if (!await TryEnsureReadyAsync(cancellationToken))
             return null;
 
         try
@@ -97,7 +92,7 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
         _initLock.Dispose();
     }
 
-    private async Task<bool> EnsureReadyAsync(CancellationToken cancellationToken)
+    private async Task<bool> TryEnsureReadyAsync(CancellationToken cancellationToken)
     {
         if (_ready)
             return true;
@@ -213,7 +208,7 @@ public sealed class OnnxEmbedder : IEmbedder, IDisposable
     private void Fail(Exception exception, string message)
     {
         if (!_failed)
-            _logger.LogWarning(exception, "{Message}", message);
+            Log.EmbedderFailed(_logger, exception, message);
 
         _failed = true;
     }

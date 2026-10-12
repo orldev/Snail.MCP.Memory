@@ -80,8 +80,8 @@ public sealed class StorageRegistrationTests : IDisposable
     {
         using var sp = Build();
 
-        Assert.NotNull(sp.GetRequiredService<MemoryService>());
-        Assert.NotNull(sp.GetRequiredService<ProjectService>());
-        Assert.NotNull(sp.GetRequiredService<GraphService>());
+        Assert.NotNull(sp.GetRequiredService<RecordLifecycle>());
+        Assert.NotNull(sp.GetRequiredService<ProjectRegistry>());
+        Assert.NotNull(sp.GetRequiredService<KnowledgeGraph>());
     }
 }

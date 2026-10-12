@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Tools;
+using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -87,17 +88,50 @@ public class StdioContractTests
 
         Assert.Equal(0, exit);
         Assert.All(session.StdoutLines, line => Assert.Equal("2.0", session.ParseOrFail(line).GetProperty("jsonrpc").GetString()));
-        Assert.True(session.DataDirectoryHasContent, "the configured data directory stayed empty — configuration did not reach the store");
+        Assert.True(session.HasDataDirectoryContent, "the configured data directory stayed empty — configuration did not reach the store");
     }
 
     /// <summary>Tools are discovered by the SDK through attributes, so a misconfigured attribute is invisible to reflection-only guards.</summary>
-    private static HashSet<string> ToolNamesOfAssembly() =>
-        typeof(ToolDescriptions).Assembly.GetTypes()
-            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)
+    private static HashSet<string> ToolNamesOfAssembly()
+    {
+        var toolTypes = typeof(ToolDescriptions).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null);
+        var toolMethods = toolTypes
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            .Where(method => method.GetCustomAttribute<McpServerToolAttribute>() is not null)
-            .Select(method => McpServerTool.Create(method).ProtocolTool.Name)
-            .ToHashSet(StringComparer.Ordinal);
+            .Where(method => method.GetCustomAttribute<McpServerToolAttribute>() is not null);
+
+        return toolMethods.Select(method => McpServerTool.Create(method).ProtocolTool.Name).ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The guard rules of every Snail server, on the list a model receives: names in snake case and listed once, the tool
+    /// and every parameter described, read-only or destructive stated, every allowed value named, English.
+    /// </summary>
+    [Fact]
+    public async Task Tools_AsListed_KeepTheGuardRules()
+    {
+        var dataDirectory = Directory.CreateTempSubdirectory("snail-guards-").FullName;
+
+        try
+        {
+            var environment = new Dictionary<string, string?>
+            {
+                [EnvironmentSettings.Prefix + "DIRECTORY"] = dataDirectory,
+                [EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false",
+                [EnvironmentSettings.ConfigPathVariable] = null,
+            };
+
+            await using var client = await ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment);
+
+            var listed = await client.ListToolsAsync();
+
+            Assert.Empty(ToolGuards.Problems(listed.Select(tool => tool.ProtocolTool)));
+        }
+        finally
+        {
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
 
     /// <summary>The server started as a separate process and spoken to over stdin/stdout, exactly as an MCP client does.</summary>
     private sealed class ServerSession : IDisposable
@@ -114,7 +148,7 @@ public class StdioContractTests
 
         public List<string> StdoutLines { get; } = [];
 
-        public bool DataDirectoryHasContent =>
+        public bool HasDataDirectoryContent =>
             Directory.Exists(_dataDirectory) && Directory.EnumerateFileSystemEntries(_dataDirectory).Any();
 
         public string StderrText => Stderr();
@@ -122,7 +156,7 @@ public class StdioContractTests
         public static async Task<ServerSession> StartAsync()
         {
             var dataDirectory = Path.Combine(Path.GetTempPath(), $"snail-stdio-{Guid.NewGuid().ToString("N")[..8]}");
-            var (command, arguments) = Snail.Toolkit.Mcp.Testing.ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
+            var (command, arguments) = ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
             var start = new ProcessStartInfo
             {
                 FileName = command,
@@ -136,6 +170,8 @@ public class StdioContractTests
             start.Environment[EnvironmentSettings.Prefix + "DIRECTORY"] = dataDirectory;
             start.Environment[EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false";
             start.Environment.Remove(EnvironmentSettings.ConfigPathVariable);
+            start.Environment["HOME"] = ServerProgram.Home;
+            start.Environment["USERPROFILE"] = ServerProgram.Home;
 
             var session = new ServerSession(Process.Start(start)!, dataDirectory);
             session.DrainStderr();

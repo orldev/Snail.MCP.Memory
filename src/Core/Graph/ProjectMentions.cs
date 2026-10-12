@@ -15,7 +15,7 @@ public static class ProjectMentions
         while (index <= text.Length - name.Length &&
                (index = text.IndexOf(name, index, StringComparison.OrdinalIgnoreCase)) >= 0)
         {
-            if (BoundaryAt(text, index - 1, outward: -1) && BoundaryAt(text, index + name.Length, outward: +1))
+            if (IsBoundaryAt(text, index - 1, outward: -1) && IsBoundaryAt(text, index + name.Length, outward: +1))
                 return true;
 
             index += 1;
@@ -30,7 +30,7 @@ public static class ProjectMentions
     /// direction — so a trailing sentence dot is a boundary, while <c>Snail.MCP.Memory.Tests</c>
     /// does not contain the name <c>Snail.MCP.Memory</c>.
     /// </summary>
-    private static bool BoundaryAt(string text, int position, int outward)
+    private static bool IsBoundaryAt(string text, int position, int outward)
     {
         if (position < 0 || position >= text.Length)
             return true;

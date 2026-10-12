@@ -19,9 +19,9 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     [Fact]
     public async Task Propose_StoresOncePerPairRegardlessOfOrderAndCase()
     {
-        Assert.True(await _harness.Pending.ProposeAsync(Suggestion()));
-        Assert.False(await _harness.Pending.ProposeAsync(Suggestion()));
-        Assert.False(await _harness.Pending.ProposeAsync(Suggestion(project: "b", other: "a")));
+        Assert.True(await _harness.Pending.TryProposeAsync(Suggestion()));
+        Assert.False(await _harness.Pending.TryProposeAsync(Suggestion()));
+        Assert.False(await _harness.Pending.TryProposeAsync(Suggestion(project: "b", other: "a")));
 
         var open = await _harness.Pending.ListAsync("a");
 
@@ -32,8 +32,8 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     [Fact]
     public async Task List_SeesThePairFromEitherEndAndEverythingWithoutAKey()
     {
-        await _harness.Pending.ProposeAsync(Suggestion());
-        await _harness.Pending.ProposeAsync(Suggestion(project: "C", other: "D"));
+        await _harness.Pending.TryProposeAsync(Suggestion());
+        await _harness.Pending.TryProposeAsync(Suggestion(project: "C", other: "D"));
 
         Assert.Single(await _harness.Pending.ListAsync("b"));
         Assert.Single(await _harness.Pending.ListAsync("a"));
@@ -44,11 +44,11 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     [Fact]
     public async Task Resolve_RemovesThePairInEitherOrder()
     {
-        await _harness.Pending.ProposeAsync(Suggestion());
+        await _harness.Pending.TryProposeAsync(Suggestion());
 
         Assert.Equal(1, await _harness.Pending.ResolveAsync("b", "a"));
         Assert.Empty(await _harness.Pending.ListAsync());
-        Assert.True(await _harness.Pending.ProposeAsync(Suggestion()));
+        Assert.True(await _harness.Pending.TryProposeAsync(Suggestion()));
     }
 
     /// A dismissed pair leaves the listing but keeps blocking re-proposal — that is the whole
@@ -56,11 +56,11 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     [Fact]
     public async Task Dismiss_HidesThePairAndBlocksReproposal()
     {
-        await _harness.Pending.ProposeAsync(Suggestion());
+        await _harness.Pending.TryProposeAsync(Suggestion());
         await _harness.Pending.DismissAsync("B", "A", _harness.Time.GetUtcNow());
 
         Assert.Empty(await _harness.Pending.ListAsync());
-        Assert.False(await _harness.Pending.ProposeAsync(Suggestion()));
+        Assert.False(await _harness.Pending.TryProposeAsync(Suggestion()));
     }
 
     [Fact]
@@ -68,14 +68,14 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     {
         await _harness.Pending.DismissAsync("A", "B", _harness.Time.GetUtcNow());
 
-        Assert.False(await _harness.Pending.ProposeAsync(Suggestion()));
+        Assert.False(await _harness.Pending.TryProposeAsync(Suggestion()));
     }
 
     [Fact]
     public async Task Rename_RewritesBothEndsOfTheSuggestions()
     {
-        await _harness.Pending.ProposeAsync(Suggestion());
-        await _harness.Pending.ProposeAsync(Suggestion(project: "C", other: "A"));
+        await _harness.Pending.TryProposeAsync(Suggestion());
+        await _harness.Pending.TryProposeAsync(Suggestion(project: "C", other: "A"));
 
         Assert.Equal(2, await _harness.Pending.RenameProjectAsync("a", "Alpha"));
 
@@ -93,11 +93,11 @@ public sealed class EfPendingLinkStoreTests : IDisposable
         var left = _harness.PendingIn("left");
         var right = _harness.PendingIn("right");
 
-        await left.ProposeAsync(Suggestion());
+        await left.TryProposeAsync(Suggestion());
 
         Assert.Single(await left.ListAsync());
         Assert.Empty(await right.ListAsync());
-        Assert.True(await right.ProposeAsync(Suggestion()));
+        Assert.True(await right.TryProposeAsync(Suggestion()));
         Assert.Equal(2, (await _harness.PendingIn("").ListAsync()).Count);
     }
 
@@ -107,11 +107,11 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     public async Task Initialization_AddsThePendingTableToAPreExistingDatabase()
     {
         var tempDir = System.IO.Directory.CreateTempSubdirectory("smupgrade");
-        var connectionString = $"Data Source={Path.Combine(tempDir.FullName, "memory.db")}";
+        var preExisting = $"Data Source={Path.Combine(tempDir.FullName, "memory.db")}";
 
         try
         {
-            await using (var connection = new SqliteConnection(connectionString))
+            await using (var connection = new SqliteConnection(preExisting))
             {
                 await connection.OpenAsync();
                 await using var command = connection.CreateCommand();
@@ -126,17 +126,17 @@ public sealed class EfPendingLinkStoreTests : IDisposable
                 await command.ExecuteNonQueryAsync();
             }
 
-            var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(connectionString).Options;
+            var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(preExisting).Options;
             using var database = new MemoryDb(new UpgradeFactory(options));
             var store = new EfPendingLinkStore(database, "");
 
-            Assert.True(await store.ProposeAsync(Suggestion()));
+            Assert.True(await store.TryProposeAsync(Suggestion()));
             Assert.Single(await store.ListAsync());
             Assert.True(await new EfAuditStore(database, "").TryClaimAsync(TimeSpan.FromDays(7), _harness.Time.GetUtcNow()));
         }
         finally
         {
-            SqlitePools.Release(connectionString);
+            SqlitePools.Release(preExisting);
             tempDir.Delete(recursive: true);
         }
     }

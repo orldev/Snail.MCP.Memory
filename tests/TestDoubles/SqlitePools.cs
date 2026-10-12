@@ -12,9 +12,9 @@ namespace Snail.MCP.Memory.Tests.TestDoubles;
 internal static class SqlitePools
 {
     /// <summary>Clears the pool of this connection string only.</summary>
-    public static void Release(string connectionString)
+    public static void Release(string database)
     {
-        using var connection = new SqliteConnection(connectionString);
+        using var connection = new SqliteConnection(database);
 
         SqliteConnection.ClearPool(connection);
     }

@@ -8,7 +8,7 @@ namespace Snail.MCP.Memory.Infrastructure.Stores;
 public sealed class EfGraphStore(MemoryDb database, string workspace) : IGraphStore
 {
     /// <inheritdoc />
-    public async Task<bool> UpsertAsync(GraphEdge edge, CancellationToken cancellationToken = default)
+    public async Task<bool> TryInsertAsync(GraphEdge edge, CancellationToken cancellationToken = default)
     {
         var sourceKey = ProjectIdentity.Key(edge.Source);
         var targetKey = ProjectIdentity.Key(edge.Target);

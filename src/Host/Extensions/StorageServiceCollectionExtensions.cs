@@ -34,7 +34,7 @@ public static class StorageServiceCollectionExtensions
         /// <summary>In-process ONNX, or the null embedder when embeddings are switched off.</summary>
         private IServiceCollection AddEmbedder(StorageOptions options)
         {
-            services.AddSingleton<IEmbedder>(sp => options.ResolveEmbeddingEnabled()
+            services.AddSingleton<IEmbedder>(sp => options.IsEmbeddingEnabled()
                 ? new OnnxEmbedder(options, sp.GetRequiredService<ILogger<OnnxEmbedder>>())
                 : new NullEmbedder(options.ResolveEmbeddingDimensions()));
 
@@ -44,22 +44,22 @@ public static class StorageServiceCollectionExtensions
         /// <summary>The provider-independent services behind the tools.</summary>
         private IServiceCollection AddApplicationServices(StorageOptions options)
         {
-            services.AddSingleton(sp => new GraphService(
+            services.AddSingleton(sp => new KnowledgeGraph(
                 sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IProjectStore>(),
                 sp.GetRequiredService<IPendingLinkStore>(), sp.GetRequiredService<TimeProvider>()));
 
-            services.AddSingleton(sp => new MemoryService(
+            services.AddSingleton(sp => new RecordLifecycle(
                 sp.GetRequiredService<IRecordStore>(), sp.GetRequiredService<IProjectStore>(),
-                sp.GetRequiredService<IEmbedder>(), sp.GetRequiredService<GraphService>(),
+                sp.GetRequiredService<IEmbedder>(), sp.GetRequiredService<KnowledgeGraph>(),
                 sp.GetRequiredService<TimeProvider>(),
                 options.ResolveDuplicateThreshold(), options.ResolveSimilarityFloor()));
 
-            services.AddSingleton(sp => new AuditService(
+            services.AddSingleton(sp => new MentionAudit(
                 sp.GetRequiredService<IRecordStore>(), sp.GetRequiredService<IProjectStore>(),
                 sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IPendingLinkStore>(),
                 sp.GetRequiredService<TimeProvider>()));
 
-            services.AddSingleton(sp => new ProjectService(
+            services.AddSingleton(sp => new ProjectRegistry(
                 sp.GetRequiredService<IProjectStore>(), sp.GetRequiredService<IRecordStore>(),
                 sp.GetRequiredService<IGraphStore>(), sp.GetRequiredService<IPendingLinkStore>(),
                 sp.GetRequiredService<IEmbedder>(),
@@ -104,17 +104,17 @@ public static class StorageServiceCollectionExtensions
         /// <remarks>The database directory is created eagerly — neither EF Core nor the vector provider creates a missing parent.</remarks>
         public IServiceCollection AddSqliteStorage(StorageOptions options)
         {
-            var connectionString = options.ResolveConnectionString();
-            var dataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+            var connection = options.ResolveConnectionString();
+            var dataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connection).DataSource;
 
             if (dataSource != ":memory:" &&
                 Path.GetDirectoryName(Path.GetFullPath(dataSource)) is { Length: > 0 } directory)
                 Directory.CreateDirectory(directory);
 
-            services.AddPooledDbContextFactory<MemoryDbContext>(builder => builder.UseSqlite(connectionString));
+            services.AddPooledDbContextFactory<MemoryDbContext>(builder => builder.UseSqlite(connection));
 
             services.AddSingleton<VectorStoreCollection<string, RecordEntity>>(_ =>
-                new SqliteCollection<string, RecordEntity>(connectionString, VectorRecordStore.CollectionName,
+                new SqliteCollection<string, RecordEntity>(connection, VectorRecordStore.CollectionName,
                     new SqliteCollectionOptions { Definition = RecordEntity.Definition(options.ResolveEmbeddingDimensions()) }));
 
             return services;
@@ -123,12 +123,12 @@ public static class StorageServiceCollectionExtensions
         /// <summary>PostgreSQL with pgvector: the server-side twin of the SQLite setup.</summary>
         public IServiceCollection AddPostgresStorage(StorageOptions options)
         {
-            var connectionString = options.ResolveConnectionString();
+            var connection = options.ResolveConnectionString();
 
-            services.AddPooledDbContextFactory<MemoryDbContext>(builder => builder.UseNpgsql(connectionString));
+            services.AddPooledDbContextFactory<MemoryDbContext>(builder => builder.UseNpgsql(connection));
 
             services.AddSingleton<VectorStoreCollection<string, RecordEntity>>(_ =>
-                new PostgresCollection<string, RecordEntity>(connectionString, VectorRecordStore.CollectionName,
+                new PostgresCollection<string, RecordEntity>(connection, VectorRecordStore.CollectionName,
                     new PostgresCollectionOptions { Definition = RecordEntity.Definition(options.ResolveEmbeddingDimensions()) }));
 
             return services;

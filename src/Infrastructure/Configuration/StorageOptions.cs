@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 
 namespace Snail.MCP.Memory.Infrastructure.Configuration;
@@ -73,6 +74,7 @@ public sealed class StorageOptions
     public string? Directory { get; set; }
 
     /// <summary>SQLite: a file path or connection string, empty — <c>{Directory}/memory.db</c>; PostgreSQL: the full connection string, required.</summary>
+    [SuppressMessage("Snail", "S3L0007", Justification = "A settings key the owner's files and SNAIL_MCP_MEMORY_CONNECTION_STRING bind by this name.")]
     public string? ConnectionString { get; set; }
 
     /// <summary>Partition of a shared database: writes are tagged with it, reads narrowed to it; empty — the whole base.</summary>
@@ -139,14 +141,14 @@ public sealed class StorageOptions
 
         var value = ConnectionString.Trim();
 
-        return value.Contains('=') ? value : $"Data Source={ServerPaths.ExpandHome(value)}";
+        return value.Contains('=', StringComparison.Ordinal) ? value : $"Data Source={ServerPaths.ExpandHome(value)}";
     }
 
     /// <summary>Configured partition tag, case-folded; empty — the whole shared base.</summary>
     public string ResolveWorkspace() => (Workspace ?? "").Trim().ToLowerInvariant();
 
     /// <summary>Whether embeddings are computed; on unless switched off.</summary>
-    public bool ResolveEmbeddingEnabled() => EmbeddingEnabled ?? true;
+    public bool IsEmbeddingEnabled() => EmbeddingEnabled ?? true;
 
     /// <summary>Configured model path or the default file in the models directory.</summary>
     public string ResolveEmbeddingModelPath() =>
@@ -185,7 +187,7 @@ public sealed class StorageOptions
         TimeSpan.FromMinutes(IdleTimeoutMinutes is > 0 ? IdleTimeoutMinutes.Value : DefaultIdleTimeoutMinutes);
 
     /// <summary>Whether the background audit runs at all; an explicit 0 switches it off.</summary>
-    public bool ResolveAuditEnabled() => AuditIntervalDays is not 0;
+    public bool IsAuditEnabled() => AuditIntervalDays is not 0;
 
     /// <summary>Configured audit interval or the default week.</summary>
     public TimeSpan ResolveAuditInterval() =>

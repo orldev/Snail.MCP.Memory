@@ -12,10 +12,6 @@
     <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageVersion Include="Snail.Toolkit.Mcp.Build" Version="0.1.0-preview.1" />
-    <PackageVersion Include="Snail.Toolkit.Mcp.Hosting" Version="0.1.0-preview.1" />
-    <PackageVersion Include="Snail.Toolkit.Mcp.Http" Version="0.1.0-preview.1" />
-    <PackageVersion Include="Snail.Toolkit.Mcp.Testing" Version="0.1.0-preview.1" />
   </ItemGroup>
 
   <ItemGroup>

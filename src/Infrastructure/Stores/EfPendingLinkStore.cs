@@ -8,7 +8,7 @@ namespace Snail.MCP.Memory.Infrastructure.Stores;
 public sealed class EfPendingLinkStore(MemoryDb database, string workspace) : IPendingLinkStore
 {
     /// <inheritdoc />
-    public async Task<bool> ProposeAsync(PendingLink link, CancellationToken cancellationToken = default)
+    public async Task<bool> TryProposeAsync(PendingLink link, CancellationToken cancellationToken = default)
     {
         var projectKey = ProjectIdentity.Key(link.Project);
         var otherKey = ProjectIdentity.Key(link.Other);

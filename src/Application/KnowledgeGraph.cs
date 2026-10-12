@@ -5,7 +5,7 @@ namespace Snail.MCP.Memory.Application;
 
 /// <summary>The directed knowledge graph: linking, unlinking, rendering, and the pending suggestion queue.</summary>
 /// <remarks>Both ends of a link must be registered projects — an edge to a name without memory is a phantom.</remarks>
-public sealed class GraphService(
+public sealed class KnowledgeGraph(
     IGraphStore graph, IProjectStore projects, IPendingLinkStore pending, TimeProvider timeProvider)
 {
     /// <summary>Depth bounds of a graph expansion.</summary>
@@ -28,7 +28,7 @@ public sealed class GraphService(
             if (await projects.GetAsync(ProjectIdentity.Key(end), cancellationToken) is null)
                 return Messages.ProjectNotFound(end);
 
-        var created = await graph.UpsertAsync(
+        var created = await graph.TryInsertAsync(
             new GraphEdge(source, target, type, note.Trim(), timeProvider.GetUtcNow()), cancellationToken);
 
         var resolved = await pending.ResolveAsync(
@@ -92,7 +92,7 @@ public sealed class GraphService(
         {
             var link = new PendingLink(project, candidate.Name, evidence, now);
 
-            if (await pending.ProposeAsync(link, cancellationToken))
+            if (await pending.TryProposeAsync(link, cancellationToken))
                 proposed.Add(link);
         }
 
@@ -154,13 +154,13 @@ public sealed class GraphService(
 
             if (!outgoing.TryGetValue((targetKey, type), out var existing))
             {
-                await graph.UpsertAsync(new GraphEdge(project, registered.Name, type, autoNote, now), cancellationToken);
+                await graph.TryInsertAsync(new GraphEdge(project, registered.Name, type, autoNote, now), cancellationToken);
                 await pending.ResolveAsync(projectKey, targetKey, cancellationToken);
                 created++;
             }
             else if (existing.Note.StartsWith(Messages.AutoNotePrefix, StringComparison.Ordinal))
             {
-                await graph.UpsertAsync(existing with { Note = autoNote, Updated = now }, cancellationToken);
+                await graph.TryInsertAsync(existing with { Note = autoNote, Updated = now }, cancellationToken);
                 refreshed++;
             }
             else
@@ -178,7 +178,7 @@ public sealed class GraphService(
                 edge.Note.Contains(Messages.StaleMarker, StringComparison.Ordinal))
                 continue;
 
-            await graph.UpsertAsync(
+            await graph.TryInsertAsync(
                 edge with { Note = edge.Note + Messages.StaleSuffix(now.ToString(MemoryFormatter.DateFormat)), Updated = now },
                 cancellationToken);
             stale++;

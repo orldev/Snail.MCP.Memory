@@ -61,7 +61,7 @@ public sealed class EnvironmentSettingsTests
             ["SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD"] = "0.9",
         });
 
-        Assert.False(options.ResolveEmbeddingEnabled());
+        Assert.False(options.IsEmbeddingEnabled());
         Assert.Equal(Path.Combine(ServerPaths.Home, "models/custom.onnx"), options.ResolveEmbeddingModelPath());
         Assert.Equal(512, options.ResolveEmbeddingDimensions());
         Assert.Equal(0.9, options.ResolveDuplicateThreshold());
@@ -74,7 +74,7 @@ public sealed class EnvironmentSettingsTests
     {
         var options = Bind(new Hashtable { ["SNAIL_MCP_MEMORY_DIRECTORY"] = "/tmp/memory" });
 
-        Assert.True(options.ResolveEmbeddingEnabled());
+        Assert.True(options.IsEmbeddingEnabled());
         Assert.Equal(StorageOptions.DefaultEmbeddingModelUrl, options.ResolveEmbeddingModelUrl());
         Assert.Equal(StorageOptions.DefaultEmbeddingTokenizerUrl, options.ResolveEmbeddingTokenizerUrl());
         Assert.Equal(StorageOptions.DefaultEmbeddingDimensions, options.ResolveEmbeddingDimensions());

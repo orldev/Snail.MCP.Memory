@@ -26,7 +26,7 @@ public sealed class ToolDescriptionTests
     public void InitProjectMemory_LeavesProjectNameOptionalAsTheDescriptionPromises()
     {
         var projectName = typeof(ProjectMemoryTools)
-            .GetMethod(nameof(ProjectMemoryTools.InitProjectMemory))!
+            .GetMethod(nameof(ProjectMemoryTools.InitProjectMemoryAsync))!
             .GetParameters().Single(p => p.Name == "projectName");
 
         Assert.True(projectName.IsOptional);
