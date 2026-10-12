@@ -15,7 +15,7 @@ public class IdleShutdownWatcherTests
     {
         private readonly TaskCompletionSource _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public bool StopApplicationCalled { get; private set; }
+        public bool WasStopApplicationCalled { get; private set; }
         public Task StoppedTask => _stopped.Task;
 
         public CancellationToken ApplicationStarted => CancellationToken.None;
@@ -24,7 +24,7 @@ public class IdleShutdownWatcherTests
 
         public void StopApplication()
         {
-            StopApplicationCalled = true;
+            WasStopApplicationCalled = true;
             _stopped.TrySetResult();
         }
     }
@@ -48,7 +48,7 @@ public class IdleShutdownWatcherTests
         var completed = await Task.WhenAny(lifetime.StoppedTask, Task.Delay(TimeSpan.FromSeconds(5)));
 
         Assert.Same(lifetime.StoppedTask, completed);
-        Assert.True(lifetime.StopApplicationCalled);
+        Assert.True(lifetime.WasStopApplicationCalled);
 
         await watcher.StopAsync(CancellationToken.None);
     }
@@ -76,7 +76,7 @@ public class IdleShutdownWatcherTests
             activity.Touch();
         }
 
-        Assert.False(lifetime.StopApplicationCalled);
+        Assert.False(lifetime.WasStopApplicationCalled);
 
         await watcher.StopAsync(CancellationToken.None);
     }

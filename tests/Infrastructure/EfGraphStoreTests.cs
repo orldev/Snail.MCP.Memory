@@ -17,8 +17,8 @@ public sealed class EfGraphStoreTests : IDisposable
     [Fact]
     public async Task Upsert_CreatesThenUpdatesByIdentity()
     {
-        Assert.True(await _store.UpsertAsync(Edge("A", "B", note: "first")));
-        Assert.False(await _store.UpsertAsync(Edge("a", "b", note: "second")));
+        Assert.True(await _store.TryInsertAsync(Edge("A", "B", note: "first")));
+        Assert.False(await _store.TryInsertAsync(Edge("a", "b", note: "second")));
 
         var edge = Assert.Single(await _store.GetAllAsync());
 
@@ -29,8 +29,8 @@ public sealed class EfGraphStoreTests : IDisposable
     [Fact]
     public async Task Upsert_KeepsDistinctTypesAsDistinctEdges()
     {
-        await _store.UpsertAsync(Edge("A", "B", LinkTypes.Uses));
-        await _store.UpsertAsync(Edge("A", "B", LinkTypes.Documents));
+        await _store.TryInsertAsync(Edge("A", "B", LinkTypes.Uses));
+        await _store.TryInsertAsync(Edge("A", "B", LinkTypes.Documents));
 
         Assert.Equal(2, (await _store.GetAllAsync()).Count);
     }
@@ -38,8 +38,8 @@ public sealed class EfGraphStoreTests : IDisposable
     [Fact]
     public async Task Remove_WorksInBothDirectionsAndByType()
     {
-        await _store.UpsertAsync(Edge("A", "B", LinkTypes.Uses));
-        await _store.UpsertAsync(Edge("B", "A", LinkTypes.Documents));
+        await _store.TryInsertAsync(Edge("A", "B", LinkTypes.Uses));
+        await _store.TryInsertAsync(Edge("B", "A", LinkTypes.Documents));
 
         Assert.Equal(1, await _store.RemoveAsync("a", "b", LinkTypes.Documents));
         Assert.Equal(1, await _store.RemoveAsync("a", "b", ""));
@@ -49,9 +49,9 @@ public sealed class EfGraphStoreTests : IDisposable
     [Fact]
     public async Task GetForProjects_SeesBothDirections()
     {
-        await _store.UpsertAsync(Edge("A", "B"));
-        await _store.UpsertAsync(Edge("C", "A"));
-        await _store.UpsertAsync(Edge("C", "D"));
+        await _store.TryInsertAsync(Edge("A", "B"));
+        await _store.TryInsertAsync(Edge("C", "A"));
+        await _store.TryInsertAsync(Edge("C", "D"));
 
         Assert.Equal(2, (await _store.GetForProjectsAsync(["a"])).Count);
     }
@@ -59,8 +59,8 @@ public sealed class EfGraphStoreTests : IDisposable
     [Fact]
     public async Task RenameProject_RewritesBothEndsAndTheDisplayName()
     {
-        await _store.UpsertAsync(Edge("Old", "B"));
-        await _store.UpsertAsync(Edge("C", "Old"));
+        await _store.TryInsertAsync(Edge("Old", "B"));
+        await _store.TryInsertAsync(Edge("C", "Old"));
 
         Assert.Equal(2, await _store.RenameProjectAsync("old", "New"));
 
@@ -79,8 +79,8 @@ public sealed class EfGraphStoreTests : IDisposable
         var alpha = _harness.GraphIn("alpha");
         var beta = _harness.GraphIn("beta");
 
-        Assert.True(await alpha.UpsertAsync(Edge("A", "B", note: "alpha's")));
-        Assert.True(await beta.UpsertAsync(Edge("A", "B", note: "beta's")));
+        Assert.True(await alpha.TryInsertAsync(Edge("A", "B", note: "alpha's")));
+        Assert.True(await beta.TryInsertAsync(Edge("A", "B", note: "beta's")));
 
         Assert.Equal("alpha's", Assert.Single(await alpha.GetAllAsync()).Note);
         Assert.Equal(2, (await _store.GetAllAsync()).Count);

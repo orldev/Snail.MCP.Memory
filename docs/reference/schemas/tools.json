@@ -1,0 +1,426 @@
+[
+  {
+    "name": "init_project_memory",
+    "description": "Initializes memory for a project and returns a briefing from related experience: similar projects, their decisions and lessons. Call it when starting work on a project that has no memory yet. Pass description \u2014 it is what finds the similar projects; pass seedFrom with existing project names (joined by \u0027\u002B\u0027) to preload their experience explicitly. Without projectName the server names the project after its working folder and refuses generic folders (src, projects, work, design).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name. Optional: when omitted, the server uses the name of the working folder the client was started in, refusing generic folders (src, projects, work, design).",
+          "type": "string",
+          "default": ""
+        },
+        "description": {
+          "description": "Short description of what the project will be \u2014 it is embedded and finds similar projects. Optional.",
+          "type": "string",
+          "default": ""
+        },
+        "seedFrom": {
+          "description": "Existing project names to preload experience from, joined by \u0027\u002B\u0027. Optional.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "list_projects",
+    "description": "Lists the projects that have memory. Call it before guessing how a project was named.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "description": "Leading characters of the project name, case-insensitive. Empty \u2014 every project.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "remember",
+    "description": "Stores one record into long-term memory. Call it by itself whenever something worth keeping happens: a decision is made (kind \u0027decision\u0027), a mistake is understood (kind \u0027lesson\u0027 \u2014 what happened, why, how to avoid), a stable fact changes (kind \u0027fact\u0027), the user states a preference (kind \u0027preference\u0027). When the server answers that a very similar record exists, do not retry blindly: either supersede it (replaceId) or store anyway (force: true). When an existing record turned out wrong or outdated, replace it with replaceId instead of adding a second opinion next to it. When the record itself reveals a relation to another project, pass links \u2014 the record and its edges land in one call. A mentioned project with no edge yet comes back as a pending link suggestion: confirm it with link_projects or reject it with dismiss_link, do not ignore it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive.",
+          "type": "string"
+        },
+        "content": {
+          "description": "The knowledge itself, in the language of the conversation.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Record kind. Canonical: fact, decision, lesson, preference, reference, note, task, event; other tags are allowed. Empty on recall \u2014 every kind; empty on remember \u2014 \u0027note\u0027.",
+          "type": "string",
+          "default": ""
+        },
+        "title": {
+          "description": "Short label of the record. Optional.",
+          "type": "string",
+          "default": ""
+        },
+        "replaceId": {
+          "description": "Id of the record this one supersedes; the old record is deleted. Optional.",
+          "type": "string",
+          "default": ""
+        },
+        "force": {
+          "description": "Store even when a very similar record exists.",
+          "type": "boolean",
+          "default": false
+        },
+        "links": {
+          "description": "Graph edges to create together with the record \u2014 the atomic form of link_projects: each element links this record\u0027s project to its \u0027to\u0027 project. Optional.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "to": {
+                "description": "Target project of the edge; the source is the record\u0027s project.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "description": "Edge type; directed from the record\u0027s project to \u0027to\u0027.",
+                "type": "string",
+                "enum": [
+                  "uses",
+                  "depends_on",
+                  "design_of",
+                  "part_of",
+                  "implements",
+                  "documents"
+                ]
+              },
+              "note": {
+                "description": "What exactly connects them \u2014 one line. Optional.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": ""
+              }
+            },
+            "required": [
+              "to",
+              "type"
+            ]
+          },
+          "default": null
+        }
+      },
+      "required": [
+        "projectName",
+        "content"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "recall",
+    "description": "Searches memory by meaning. Call it before proposing an architecture, a stack or a fix \u2014 past decisions and lessons apply across projects, so leave projectName empty to search the whole memory (that is the default that transfers experience); set it to restore the context of one project. An empty query returns an overview of the newest records \u2014 use that to recover after a context reset. If a returned record is visibly wrong or outdated, fix the memory immediately: remember with replaceId, or forget. A project-scoped recall also lists the project\u0027s pending link suggestions until each is confirmed (link_projects) or rejected (dismiss_link).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "What to look for, in natural language. Empty \u2014 an overview of the newest records.",
+          "type": "string",
+          "default": ""
+        },
+        "projectName": {
+          "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive. Empty \u2014 the whole memory (transfers experience across projects).",
+          "type": "string",
+          "default": ""
+        },
+        "kind": {
+          "description": "Record kind. Canonical: fact, decision, lesson, preference, reference, note, task, event; other tags are allowed. Empty on recall \u2014 every kind; empty on remember \u2014 \u0027note\u0027.",
+          "type": "string",
+          "default": ""
+        },
+        "limit": {
+          "description": "How many records to return (1-50).",
+          "type": "integer",
+          "default": 8
+        }
+      }
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "forget",
+    "description": "Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk cleanups confirm the list with the user first \u2014 review_memory nominates candidates.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "description": "Record id, or several ids comma-separated.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ids"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "review_memory",
+    "description": "Lists deletion candidates: durable records that recall has never returned and that grew old, plus tasks untouched for as long. Candidates are nominations, not decisions \u2014 confirm with the user, then forget the confirmed ids.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive. Empty \u2014 the whole memory.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "rename_project",
+    "description": "Renames a project everywhere: the registry, every record, every graph edge. The old name stops existing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "oldName": {
+          "description": "Current name of the project.",
+          "type": "string"
+        },
+        "newName": {
+          "description": "New name of the project.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "oldName",
+        "newName"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "link_projects",
+    "description": "Creates or updates a directed, typed edge between two projects. Call it by itself the moment a dependency becomes visible: one project uses another, holds its design, documents it. Only directed facts belong here \u2014 \u0027these two are similar\u0027 is not stored, recall finds similarity by meaning. A confirmed edge also settles the pair\u0027s pending link suggestion.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "Source project of the directed edge.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Target project of the directed edge.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Edge type: uses, depends_on, design_of, part_of, implements or documents; all types are directed, from source to target.",
+          "type": "string",
+          "enum": [
+            "uses",
+            "depends_on",
+            "design_of",
+            "part_of",
+            "implements",
+            "documents"
+          ]
+        },
+        "note": {
+          "description": "What exactly connects them \u2014 one line. Optional.",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "type"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "dismiss_link",
+    "description": "Rejects a pending link suggestion: the pair stops being proposed, permanently. Use it when a mentioned project is not actually related; when the relation is real, confirm it with link_projects instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "First project of the suggested pair.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Second project of the suggested pair.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "unlink_projects",
+    "description": "Removes edges between two projects regardless of direction. Empty type removes every edge between them.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "First project.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Second project.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Edge type. Empty \u2014 remove every edge between these projects.",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "sync_project_links",
+    "description": "Syncs machine-extracted relations into the graph from any source of truth, not only code: a project manifest (csproj, package.json), an Obsidian vault\u0027s wiki-links, an XML registry. The caller parses the source and passes the relations; the server upserts them as auto edges (note \u0027auto: \u003Csource\u003E\u0027). Manual edges are never overwritten, an auto edge that disappeared from its source is only marked stale \u2014 never deleted \u2014 and a target with no memory is skipped and reported. Idempotent: the same payload twice changes nothing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive.",
+          "type": "string"
+        },
+        "links": {
+          "description": "The relations extracted from the source, each directed from this project to its \u0027to\u0027.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "description": "Target project of the edge; the source is the record\u0027s project.",
+                "type": "string"
+              },
+              "type": {
+                "description": "Edge type; directed from the record\u0027s project to \u0027to\u0027.",
+                "type": "string",
+                "enum": [
+                  "uses",
+                  "depends_on",
+                  "design_of",
+                  "part_of",
+                  "implements",
+                  "documents"
+                ]
+              },
+              "note": {
+                "description": "What exactly connects them \u2014 one line. Optional.",
+                "type": "string",
+                "default": ""
+              }
+            },
+            "required": [
+              "to",
+              "type"
+            ]
+          }
+        },
+        "source": {
+          "description": "What was parsed to get them \u2014 csproj, package.json, obsidian, xml, \u2026 \u2014 stamped into the auto note.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectName",
+        "links",
+        "source"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "get_graph",
+    "description": "Renders the directed edges around the selected projects without loading any records. Empty projectName renders the whole graph.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name, or several joined by \u0027\u002B\u0027. Empty \u2014 the whole graph.",
+          "type": "string",
+          "default": ""
+        },
+        "depth": {
+          "description": "How many edge hops to expand (1-5).",
+          "type": "integer",
+          "default": 1
+        }
+      }
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "skill": null
+  }
+]

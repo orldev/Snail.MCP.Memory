@@ -4,7 +4,7 @@ namespace Snail.MCP.Memory.Core.Interfaces;
 public interface IGraphStore
 {
     /// <summary>Creates or updates an edge; returns <c>true</c> when it was created.</summary>
-    Task<bool> UpsertAsync(GraphEdge edge, CancellationToken cancellationToken = default);
+    Task<bool> TryInsertAsync(GraphEdge edge, CancellationToken cancellationToken = default);
 
     /// <summary>Removes edges between two projects in both directions; empty type — every type. Returns the count.</summary>
     Task<int> RemoveAsync(string sourceKey, string targetKey, string type, CancellationToken cancellationToken = default);

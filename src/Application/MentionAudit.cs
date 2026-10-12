@@ -4,7 +4,7 @@ namespace Snail.MCP.Memory.Application;
 
 /// <summary>The background audit: refills the pending queue from records the write-time scan could not cover.</summary>
 /// <remarks>A mention written before the mentioned project existed — or before the queue itself — surfaces only here.</remarks>
-public sealed class AuditService(
+public sealed class MentionAudit(
     IRecordStore records,
     IProjectStore projects,
     IGraphStore graph,
@@ -44,7 +44,7 @@ public sealed class AuditService(
                 if (mention is null)
                     continue;
 
-                if (await pending.ProposeAsync(
+                if (await pending.TryProposeAsync(
                         new PendingLink(project.Name, other.Name, MemoryFormatter.Label(mention), now), cancellationToken))
                     queued++;
             }

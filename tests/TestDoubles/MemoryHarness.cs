@@ -13,16 +13,16 @@ namespace Snail.MCP.Memory.Tests.TestDoubles;
 public sealed class MemoryHarness : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), $"smharness-{Guid.NewGuid()}");
-    private readonly string _connectionString;
+    private readonly string _connection;
     private readonly int _dimensions;
 
     public MemoryHarness(int dimensions = 16, string workspace = "")
     {
         _dimensions = dimensions;
-        _connectionString = $"Data Source={Path.Combine(_tempDir, "memory.db")}";
+        _connection = $"Data Source={Path.Combine(_tempDir, "memory.db")}";
         Directory.CreateDirectory(_tempDir);
 
-        var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(_connectionString).Options;
+        var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(_connection).Options;
         Database = new MemoryDb(new Factory(options));
         Records = RecordsIn(workspace);
         Projects = ProjectsIn(workspace);
@@ -48,7 +48,7 @@ public sealed class MemoryHarness : IDisposable
 
     /// <summary>A record store over the same database, partitioned to <paramref name="workspace"/>.</summary>
     public VectorRecordStore RecordsIn(string workspace) => new(
-        new SqliteCollection<string, RecordEntity>(_connectionString, VectorRecordStore.CollectionName,
+        new SqliteCollection<string, RecordEntity>(_connection, VectorRecordStore.CollectionName,
             new SqliteCollectionOptions { Definition = RecordEntity.Definition(_dimensions) }),
         _dimensions, workspace);
 
@@ -67,7 +67,7 @@ public sealed class MemoryHarness : IDisposable
     public void Dispose()
     {
         Database.Dispose();
-        SqlitePools.Release(_connectionString);
+        SqlitePools.Release(_connection);
         if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, recursive: true);
     }
 

@@ -4,17 +4,17 @@ namespace Snail.MCP.Memory.Tests.Application;
 
 /// The audit backfills the pending queue from records the write-time scan could not cover —
 /// mentions that predate the mentioned project — and repeats without duplicating.
-public sealed class AuditServiceTests : IDisposable
+public sealed class MentionAuditTests : IDisposable
 {
     private readonly MemoryHarness _harness = new();
-    private readonly MemoryService _memory;
-    private readonly AuditService _audit;
+    private readonly RecordLifecycle _memory;
+    private readonly MentionAudit _audit;
 
-    public AuditServiceTests()
+    public MentionAuditTests()
     {
-        var graph = new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time);
-        _memory = new MemoryService(_harness.Records, _harness.Projects, _harness.Embedder, graph, _harness.Time, 0.95, 0.5);
-        _audit = new AuditService(_harness.Records, _harness.Projects, _harness.Graph, _harness.Pending, _harness.Time);
+        var graph = new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time);
+        _memory = new RecordLifecycle(_harness.Records, _harness.Projects, _harness.Embedder, graph, _harness.Time, 0.95, 0.5);
+        _audit = new MentionAudit(_harness.Records, _harness.Projects, _harness.Graph, _harness.Pending, _harness.Time);
     }
 
     public void Dispose() => _harness.Dispose();
@@ -43,7 +43,7 @@ public sealed class AuditServiceTests : IDisposable
         await _memory.RememberAsync("ProjectA", "built on ProjectB and ProjectC");
         await _memory.RememberAsync("ProjectB", "the linked one");
         await _memory.RememberAsync("ProjectC", "the unlinked one");
-        await _harness.Graph.UpsertAsync(
+        await _harness.Graph.TryInsertAsync(
             new GraphEdge("ProjectA", "ProjectB", LinkTypes.DependsOn, "", _harness.Time.GetUtcNow()));
 
         Assert.Equal(1, await _audit.RunAsync());

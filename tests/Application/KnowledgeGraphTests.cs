@@ -3,21 +3,21 @@ using Snail.MCP.Memory.Tests.TestDoubles;
 namespace Snail.MCP.Memory.Tests.Application;
 
 /// Linking rules and graph rendering over a real database.
-public sealed class GraphServiceTests : IDisposable
+public sealed class KnowledgeGraphTests : IDisposable
 {
     private readonly MemoryHarness _harness = new();
-    private readonly GraphService _service;
+    private readonly KnowledgeGraph _service;
 
-    public GraphServiceTests()
+    public KnowledgeGraphTests()
     {
-        _service = new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time);
+        _service = new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time);
     }
 
     public void Dispose() => _harness.Dispose();
 
     private Task Register(params string[] names) =>
         Task.WhenAll(names.Select(name =>
-            _harness.Projects.CreateAsync(new ProjectInfo(name, "", _harness.Time.GetUtcNow()))));
+            _harness.Projects.TryCreateAsync(new ProjectInfo(name, "", _harness.Time.GetUtcNow()))));
 
     [Fact]
     public async Task Link_CreatesThenUpdates()
@@ -79,7 +79,7 @@ public sealed class GraphServiceTests : IDisposable
     public async Task Link_ResolvesThePendingSuggestionOfThePair()
     {
         await Register("A", "B");
-        await _harness.Pending.ProposeAsync(new PendingLink("B", "A", "", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("B", "A", "", _harness.Time.GetUtcNow()));
 
         var answer = await _service.LinkAsync("A", "B", LinkTypes.Uses);
 
@@ -91,7 +91,7 @@ public sealed class GraphServiceTests : IDisposable
     public async Task Dismiss_RejectsThePairAndValidatesLikeLink()
     {
         await Register("A", "B");
-        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
 
         Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.DismissAsync("A", "Ghost"));
         Assert.Equal(Messages.SelfLinkForbidden, await _service.DismissAsync("A", "a"));
@@ -123,7 +123,7 @@ public sealed class GraphServiceTests : IDisposable
     public async Task Sync_CreatesAutoEdgesResolvesPendingAndSkipsUnknownTargets()
     {
         await Register("A", "B");
-        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
 
         var answer = await _service.SyncAsync("A",
             [new RecordLink("B", LinkType.DependsOn), new RecordLink("Ghost", LinkType.Uses)], "csproj");

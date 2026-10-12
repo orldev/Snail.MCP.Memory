@@ -5,7 +5,7 @@ namespace Snail.MCP.Memory.Application;
 
 /// <summary>Project registry operations: init with the experience briefing, listing, renaming.</summary>
 /// <remarks>Init embeds the description and asks the whole memory "where have I seen this before?"; <c>seedFrom</c> pulls named donors instead.</remarks>
-public sealed class ProjectService(
+public sealed class ProjectRegistry(
     IProjectStore projects,
     IRecordStore records,
     IGraphStore graph,
@@ -32,7 +32,7 @@ public sealed class ProjectService(
         if (project.Length == 0)
             return Messages.ProjectNameEmpty;
 
-        var created = await projects.CreateAsync(
+        var created = await projects.TryCreateAsync(
             new ProjectInfo(project, description.Trim(), timeProvider.GetUtcNow()), cancellationToken);
 
         var headline = created
@@ -78,7 +78,7 @@ public sealed class ProjectService(
         if (oldKey != newKey && await projects.GetAsync(newKey, cancellationToken) is { } taken)
             return Messages.RenameTargetTaken(taken.Name);
 
-        await projects.RenameAsync(oldKey, newProject, cancellationToken);
+        await projects.TryRenameAsync(oldKey, newProject, cancellationToken);
         var movedRecords = await records.RenameProjectAsync(oldKey, newProject, cancellationToken);
         var movedEdges = await graph.RenameProjectAsync(oldKey, newProject, cancellationToken);
         await pending.RenameProjectAsync(oldKey, newProject, cancellationToken);

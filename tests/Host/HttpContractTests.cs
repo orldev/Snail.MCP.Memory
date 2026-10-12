@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Memory.Infrastructure.Configuration;
-using Snail.Toolkit.Mcp.Testing;
+using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -34,6 +34,9 @@ public sealed class HttpContractTests : IAsyncLifetime
         start.Environment[EnvironmentSettings.Prefix + "DIRECTORY"] = _dataDirectory;
         start.Environment[EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false";
         start.Environment[EnvironmentSettings.Prefix + "AUDIT_INTERVAL_DAYS"] = "0";
+        start.Environment.Remove(EnvironmentSettings.ConfigPathVariable);
+        start.Environment["HOME"] = ServerProgram.Home;
+        start.Environment["USERPROFILE"] = ServerProgram.Home;
 
         _server = Process.Start(start)!;
         _server.OutputDataReceived += (_, _) => { };
@@ -114,9 +117,13 @@ public sealed class HttpContractTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    /// <summary>A client of the shared server, offering <paramref name="roots"/> as its folder when given.</summary>
+    /// <remarks>
+    /// Speaks the 2025-06-18 revision: a session is opened by initialize, which the 2026-07-28 revision no longer sends;
+    /// clients of today still do.
+    /// </remarks>
     private Task<McpClient> ConnectAsync(string? roots, CancellationToken cancellationToken)
     {
-        // A session is opened by initialize, which the 2026-07-28 revision no longer sends; clients of today still do.
         var options = new McpClientOptions { ProtocolVersion = "2025-06-18" };
 
         if (roots is not null)

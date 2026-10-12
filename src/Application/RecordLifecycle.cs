@@ -6,11 +6,11 @@ namespace Snail.MCP.Memory.Application;
 
 /// <summary>The record lifecycle: remember with supersession, recall with fallback, forget, review.</summary>
 /// <remarks>The server surfaces mechanics; judgment calls stay with the agent.</remarks>
-public sealed class MemoryService(
+public sealed class RecordLifecycle(
     IRecordStore records,
     IProjectStore projects,
     IEmbedder embedder,
-    GraphService graph,
+    KnowledgeGraph graph,
     TimeProvider timeProvider,
     double duplicateThreshold,
     double similarityFloor = 0,
@@ -178,7 +178,7 @@ public sealed class MemoryService(
     private async Task EnsureProjectAsync(string project, DateTimeOffset now, CancellationToken cancellationToken)
     {
         if (await projects.GetAsync(ProjectIdentity.Key(project), cancellationToken) is null)
-            await projects.CreateAsync(new ProjectInfo(project, "", now), cancellationToken);
+            await projects.TryCreateAsync(new ProjectInfo(project, "", now), cancellationToken);
     }
 
     private async Task<ScoredRecord?> FindDuplicateAsync(

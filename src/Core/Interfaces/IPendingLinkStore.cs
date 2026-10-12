@@ -5,7 +5,7 @@ namespace Snail.MCP.Memory.Core.Interfaces;
 public interface IPendingLinkStore
 {
     /// <summary>Stores a suggestion unless the pair is already suggested or dismissed; returns whether it was stored.</summary>
-    Task<bool> ProposeAsync(PendingLink link, CancellationToken cancellationToken = default);
+    Task<bool> TryProposeAsync(PendingLink link, CancellationToken cancellationToken = default);
 
     /// <summary>Open suggestions touching the project, oldest first; empty key — every project.</summary>
     Task<IReadOnlyList<PendingLink>> ListAsync(string projectKey = "", CancellationToken cancellationToken = default);

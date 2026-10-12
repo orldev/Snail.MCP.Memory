@@ -8,14 +8,14 @@ public interface IProjectStore
     Task<ProjectInfo?> GetAsync(string projectKey, CancellationToken cancellationToken = default);
 
     /// <summary>Registers a project; returns <c>false</c> when the key is already taken.</summary>
-    Task<bool> CreateAsync(ProjectInfo project, CancellationToken cancellationToken = default);
+    Task<bool> TryCreateAsync(ProjectInfo project, CancellationToken cancellationToken = default);
 
     /// <summary>Every registered project, unordered; filtering and ordering live in the identity.</summary>
     Task<IReadOnlyList<ProjectInfo>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Renames a project; <c>false</c> when the old key is missing or the new one is taken.</summary>
-    Task<bool> RenameAsync(string oldKey, string newName, CancellationToken cancellationToken = default);
+    Task<bool> TryRenameAsync(string oldKey, string newName, CancellationToken cancellationToken = default);
 
     /// <summary>Removes a project from the registry; returns whether it existed.</summary>
-    Task<bool> DeleteAsync(string projectKey, CancellationToken cancellationToken = default);
+    Task<bool> TryDeleteAsync(string projectKey, CancellationToken cancellationToken = default);
 }

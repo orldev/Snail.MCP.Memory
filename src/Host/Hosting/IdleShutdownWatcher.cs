@@ -5,6 +5,10 @@ namespace Snail.MCP.Memory.Host.Hosting;
 
 /// <summary>Stops an orphaned process when no MCP tool has been called for longer than the idle timeout.</summary>
 /// <remarks>Never touches stdin — the SDK transport owns it, and a second reader would race for protocol bytes.</remarks>
+/// <param name="activity">The instant of the last tool call.</param>
+/// <param name="appLifetime">What the server is stopped through.</param>
+/// <param name="logger">Where the shutdown is told.</param>
+/// <param name="timeProvider">The clock idleness is measured by; the system clock when omitted.</param>
 /// <param name="idleTimeout">Idle period after which the host stops; 1 hour when omitted.</param>
 /// <param name="pollInterval">How often activity is checked; 5 minutes when omitted.</param>
 public sealed class IdleShutdownWatcher(
@@ -32,9 +36,7 @@ public sealed class IdleShutdownWatcher(
                 var idleFor = _timeProvider.GetUtcNow().UtcDateTime - activity.LastActivityUtc;
                 if (idleFor < _idleTimeout) continue;
 
-                logger.LogWarning(
-                    "No MCP tool has been called for {IdleFor}. The process looks orphaned — shutting the server down...",
-                    idleFor);
+                Log.Orphaned(logger, idleFor);
                 appLifetime.StopApplication();
                 return;
             }

@@ -3,20 +3,20 @@ using Snail.MCP.Memory.Tests.TestDoubles;
 namespace Snail.MCP.Memory.Tests.Application;
 
 /// Init with the experience briefing, listing and renaming over a real database.
-public sealed class ProjectServiceTests : IDisposable
+public sealed class ProjectRegistryTests : IDisposable
 {
     private readonly MemoryHarness _harness = new();
-    private readonly ProjectService _service;
-    private readonly MemoryService _memory;
+    private readonly ProjectRegistry _service;
+    private readonly RecordLifecycle _memory;
 
-    public ProjectServiceTests()
+    public ProjectRegistryTests()
     {
-        _service = new ProjectService(
+        _service = new ProjectRegistry(
             _harness.Projects, _harness.Records, _harness.Graph, _harness.Pending, _harness.Embedder, _harness.Time,
             similarityFloor: 0.5);
-        _memory = new MemoryService(
+        _memory = new RecordLifecycle(
             _harness.Records, _harness.Projects, _harness.Embedder,
-            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
+            new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
     }
 
     public void Dispose() => _harness.Dispose();
@@ -80,7 +80,7 @@ public sealed class ProjectServiceTests : IDisposable
     {
         await _service.InitAsync("A");
         await _service.InitAsync("B");
-        await _harness.Pending.ProposeAsync(new PendingLink("A", "B", "a record", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("A", "B", "a record", _harness.Time.GetUtcNow()));
 
         var answer = await _service.InitAsync("A");
 
@@ -93,7 +93,7 @@ public sealed class ProjectServiceTests : IDisposable
     {
         await _service.InitAsync("Old");
         await _service.InitAsync("Other");
-        await _harness.Pending.ProposeAsync(new PendingLink("Old", "Other", "", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("Old", "Other", "", _harness.Time.GetUtcNow()));
 
         await _service.RenameAsync("Old", "Fresh");
 
@@ -106,7 +106,7 @@ public sealed class ProjectServiceTests : IDisposable
     {
         await _memory.RememberAsync("Old", "knowledge");
         await _service.InitAsync("Other");
-        await _harness.Graph.UpsertAsync(new GraphEdge("Old", "Other", LinkTypes.Uses, "", _harness.Time.GetUtcNow()));
+        await _harness.Graph.TryInsertAsync(new GraphEdge("Old", "Other", LinkTypes.Uses, "", _harness.Time.GetUtcNow()));
 
         var answer = await _service.RenameAsync("old", "Fresh");
 

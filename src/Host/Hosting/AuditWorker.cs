@@ -12,7 +12,7 @@ namespace Snail.MCP.Memory.Host.Hosting;
 /// </summary>
 public sealed class AuditWorker(
     IAuditStore state,
-    AuditService audit,
+    MentionAudit audit,
     TimeProvider timeProvider,
     ILogger<AuditWorker> logger,
     TimeSpan interval,
@@ -47,7 +47,7 @@ public sealed class AuditWorker(
                 return;
 
             var queued = await audit.RunAsync(stoppingToken);
-            logger.LogInformation("Memory audit queued {Count} link suggestion(s).", queued);
+            Log.AuditQueued(logger, queued);
         }
         catch (OperationCanceledException)
         {
@@ -55,7 +55,7 @@ public sealed class AuditWorker(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Memory audit run failed.");
+            Log.AuditFailed(logger, exception);
         }
     }
 }

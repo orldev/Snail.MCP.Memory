@@ -1,0 +1,9 @@
+{
+  "intro": [
+    "Long-term memory for an AI agent: records of decisions, lessons and preferences searched by meaning, per project and across projects, and a directed knowledge graph between projects. Everything runs on the machine — a single SQLite file and an in-process embedding model by default; the same server speaks PostgreSQL."
+  ],
+  "families": [
+    { "type": "ProjectMemoryTools", "slug": "memory", "title": "Projects and their records" },
+    { "type": "KnowledgeGraphTools", "slug": "graph", "title": "The knowledge graph between projects" }
+  ]
+}

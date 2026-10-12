@@ -10,9 +10,9 @@ namespace Snail.MCP.Memory.Tools;
 public static class KnowledgeGraphTools
 {
     /// <summary>Creates or updates a directed, typed edge between two projects.</summary>
-    [McpServerTool, Description(ToolDescriptions.LinkProjects)]
+    [McpServerTool(ReadOnly = false, Destructive = false), Description(ToolDescriptions.LinkProjects)]
     public static Task<string> LinkProjects(
-        GraphService service,
+        KnowledgeGraph service,
         [Description("Source project of the directed edge.")] string from,
         [Description("Target project of the directed edge.")] string to,
         [Description(ToolDescriptions.LinkTypeParam)] LinkType type,
@@ -20,35 +20,35 @@ public static class KnowledgeGraphTools
         service.LinkAsync(from, to, type.Wire(), note);
 
     /// <summary>Rejects a pending link suggestion so the pair is never proposed again.</summary>
-    [McpServerTool, Description(ToolDescriptions.DismissLink)]
+    [McpServerTool(ReadOnly = false, Destructive = false), Description(ToolDescriptions.DismissLink)]
     public static Task<string> DismissLink(
-        GraphService service,
+        KnowledgeGraph service,
         [Description("First project of the suggested pair.")] string from,
         [Description("Second project of the suggested pair.")] string to) =>
         service.DismissAsync(from, to);
 
     /// <summary>Removes edges between two projects regardless of direction.</summary>
-    [McpServerTool, Description(ToolDescriptions.UnlinkProjects)]
+    [McpServerTool(ReadOnly = false, Destructive = true), Description(ToolDescriptions.UnlinkProjects)]
     public static Task<string> UnlinkProjects(
-        GraphService service,
+        KnowledgeGraph service,
         [Description("First project.")] string from,
         [Description("Second project.")] string to,
         [Description("Edge type. Empty — remove every edge between these projects.")] string type = "") =>
         service.UnlinkAsync(from, to, type);
 
     /// <summary>Upserts machine-extracted relations as auto edges.</summary>
-    [McpServerTool, Description(ToolDescriptions.SyncProjectLinks)]
+    [McpServerTool(ReadOnly = false, Destructive = false), Description(ToolDescriptions.SyncProjectLinks)]
     public static Task<string> SyncProjectLinks(
-        GraphService service,
+        KnowledgeGraph service,
         [Description(ToolDescriptions.ProjectNameParam)] string projectName,
         [Description("The relations extracted from the source, each directed from this project to its 'to'.")] RecordLink[] links,
         [Description("What was parsed to get them — csproj, package.json, obsidian, xml, … — stamped into the auto note.")] string source) =>
         service.SyncAsync(projectName, links, source);
 
     /// <summary>Renders the edges around the selected projects without loading records.</summary>
-    [McpServerTool, Description(ToolDescriptions.GetGraph)]
+    [McpServerTool(ReadOnly = true), Description(ToolDescriptions.GetGraph)]
     public static Task<string> GetGraph(
-        GraphService service,
+        KnowledgeGraph service,
         [Description("Project name, or several joined by '+'. Empty — the whole graph.")] string projectName = "",
         [Description("How many edge hops to expand (1-5).")] int depth = 1) =>
         service.RenderAsync(projectName, depth);

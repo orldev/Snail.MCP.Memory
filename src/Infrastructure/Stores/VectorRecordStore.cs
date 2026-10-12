@@ -1,5 +1,5 @@
-using Microsoft.Extensions.VectorData;
 using System.Linq.Expressions;
+using Microsoft.Extensions.VectorData;
 
 namespace Snail.MCP.Memory.Infrastructure.Stores;
 
@@ -37,7 +37,7 @@ public sealed class VectorRecordStore(
 
         var entity = await collection.GetAsync(id.ToString("D"), cancellationToken: cancellationToken);
 
-        return entity is null || !InScope(entity) ? null : entity.ToRecord();
+        return entity is null || !IsInScope(entity) ? null : entity.ToRecord();
     }
 
     /// <inheritdoc />
@@ -52,7 +52,7 @@ public sealed class VectorRecordStore(
             var key = id.ToString("D");
             var entity = await collection.GetAsync(key, cancellationToken: cancellationToken);
 
-            if (entity is null || !InScope(entity))
+            if (entity is null || !IsInScope(entity))
                 continue;
 
             await collection.DeleteAsync(key, cancellationToken);
@@ -205,7 +205,7 @@ public sealed class VectorRecordStore(
         }
     }
 
-    private bool InScope(RecordEntity entity) => workspace.Length == 0 || entity.Workspace == workspace;
+    private bool IsInScope(RecordEntity entity) => workspace.Length == 0 || entity.Workspace == workspace;
 
     /// <summary>The closed filter cases; the no-filter case still needs a translatable expression, hence <c>Updated >= 0</c>.</summary>
     private Expression<Func<RecordEntity, bool>> ListFilter(RecordFilter filter)

@@ -1,20 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Snail.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <OutputType>Exe</OutputType>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <IsPackable>false</IsPackable>
         <RootNamespace>Snail.MCP.Memory.Benchmarks</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet"/>
+        <PackageReference Include="BenchmarkDotNet" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\Snail.MCP.Memory.csproj"/>
+        <ProjectReference Include="..\src\Snail.MCP.Memory.csproj" />
     </ItemGroup>
 
 </Project>

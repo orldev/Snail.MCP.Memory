@@ -17,7 +17,7 @@ internal static class ModelDownloader
         if (Path.GetDirectoryName(Path.GetFullPath(path)) is { Length: > 0 } directory)
             Directory.CreateDirectory(directory);
 
-        logger.LogInformation("Downloading embedding asset {Url} into {Path}...", url, path);
+        Log.Downloading(logger, url, path);
 
         var temporaryPath = $"{path}.tmp";
 
@@ -37,6 +37,6 @@ internal static class ModelDownloader
             throw;
         }
 
-        logger.LogInformation("Downloaded {Path} ({Size} MB).", path, new FileInfo(path).Length / (1024 * 1024));
+        Log.Downloaded(logger, path, new FileInfo(path).Length / (1024 * 1024));
     }
 }

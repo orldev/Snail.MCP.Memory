@@ -182,11 +182,12 @@ public static class MemoryFormatter
         builder.AppendLine(Messages.GraphTableSeparator);
 
         foreach (var edge in edges.OrderBy(e => e.Source, ProjectIdentity.Comparer).ThenBy(e => e.Type))
-            builder.Append("| ").Append(edge.Source)
-                .Append(" | ").Append(LinkTypes.Describe(edge.Type))
-                .Append(" | ").Append(edge.Target)
-                .Append(" | ").Append(Cell(edge.Note))
-                .AppendLine(" |");
+        {
+            builder.Append("| ").Append(edge.Source);
+            builder.Append(" | ").Append(LinkTypes.Describe(edge.Type));
+            builder.Append(" | ").Append(edge.Target);
+            builder.Append(" | ").Append(Cell(edge.Note)).AppendLine(" |");
+        }
 
         return builder.ToString().TrimEnd();
     }
@@ -199,7 +200,8 @@ public static class MemoryFormatter
 
         foreach (var link in pending)
         {
-            builder.Append("- **").Append(link.Project).Append("** ↔ **").Append(link.Other).Append("**");
+            builder.Append("- **").Append(link.Project);
+            builder.Append("** ↔ **").Append(link.Other).Append("**");
 
             if (!string.IsNullOrWhiteSpace(link.Evidence))
                 builder.Append(" — ").Append(link.Evidence);
@@ -248,11 +250,12 @@ public static class MemoryFormatter
         builder.AppendLine(title);
 
         foreach (var record in records)
-            builder.Append("- [").Append(record.Kind).Append("] ")
-                .Append(Label(record))
-                .Append(" — ").Append(record.Project)
-                .Append(" · created ").Append(Date(record.Created))
-                .Append(" · id `").Append(record.Id).AppendLine("`");
+        {
+            builder.Append("- [").Append(record.Kind).Append("] ").Append(Label(record));
+            builder.Append(" — ").Append(record.Project);
+            builder.Append(" · created ").Append(Date(record.Created));
+            builder.Append(" · id `").Append(record.Id).AppendLine("`");
+        }
 
         builder.AppendLine();
     }
@@ -277,5 +280,5 @@ public static class MemoryFormatter
 
     private static string Date(DateTimeOffset instant) => instant.ToString(DateFormat);
 
-    private static string Cell(string value) => value.Replace("|", "\\|").Replace("\n", " ");
+    private static string Cell(string value) => value.Replace("|", "\\|", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal);
 }

@@ -18,7 +18,7 @@ public sealed class EfProjectStore(MemoryDb database, string workspace) : IProje
     }
 
     /// <inheritdoc />
-    public async Task<bool> CreateAsync(ProjectInfo project, CancellationToken cancellationToken = default)
+    public async Task<bool> TryCreateAsync(ProjectInfo project, CancellationToken cancellationToken = default)
     {
         var key = ProjectIdentity.Key(project.Name);
 
@@ -57,7 +57,7 @@ public sealed class EfProjectStore(MemoryDb database, string workspace) : IProje
     }
 
     /// <inheritdoc />
-    public async Task<bool> RenameAsync(string oldKey, string newName, CancellationToken cancellationToken = default)
+    public async Task<bool> TryRenameAsync(string oldKey, string newName, CancellationToken cancellationToken = default)
     {
         var newKey = ProjectIdentity.Key(newName);
         var displayName = ProjectIdentity.Normalize(newName);
@@ -81,7 +81,7 @@ public sealed class EfProjectStore(MemoryDb database, string workspace) : IProje
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteAsync(string projectKey, CancellationToken cancellationToken = default)
+    public async Task<bool> TryDeleteAsync(string projectKey, CancellationToken cancellationToken = default)
     {
         await using var context = await database.CreateAsync(cancellationToken);
 

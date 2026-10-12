@@ -110,7 +110,7 @@ public static class ToolDescriptions
 
     /// <summary>Wording of the link type parameter.</summary>
     public const string LinkTypeParam =
-        "Edge type; all types are directed, from source to target.";
+        "Edge type: uses, depends_on, design_of, part_of, implements or documents; all types are directed, from source to target.";
 
     /// <summary>Wording of the links parameter of remember.</summary>
     public const string LinksParam =

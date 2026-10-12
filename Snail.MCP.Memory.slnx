@@ -1,9 +1,4 @@
 <Solution>
-  <Configurations>
-    <Platform Name="Any CPU" />
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
   <Project Path="src/Snail.MCP.Memory.csproj" />
   <Project Path="tests/Snail.MCP.Memory.Tests.csproj" />
   <Project Path="benchmarks/Snail.MCP.Memory.Benchmarks.csproj" />

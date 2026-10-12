@@ -12,9 +12,9 @@ namespace Snail.MCP.Memory.Tools;
 public static class ProjectMemoryTools
 {
     /// <summary>Initializes a project's memory and returns the experience briefing.</summary>
-    [McpServerTool, Description(ToolDescriptions.InitProjectMemory)]
-    public static async Task<string> InitProjectMemory(
-        ProjectService service,
+    [McpServerTool(Name = "init_project_memory", ReadOnly = false, Destructive = false), Description(ToolDescriptions.InitProjectMemory)]
+    public static async Task<string> InitProjectMemoryAsync(
+        ProjectRegistry service,
         McpServer server,
         CancellationToken cancellationToken,
         [Description(ToolDescriptions.NewProjectNameParam)] string projectName = "",
@@ -33,16 +33,16 @@ public static class ProjectMemoryTools
     }
 
     /// <summary>Lists the stored projects, optionally filtered by a name prefix.</summary>
-    [McpServerTool, Description(ToolDescriptions.ListProjects)]
+    [McpServerTool(ReadOnly = true), Description(ToolDescriptions.ListProjects)]
     public static Task<string> ListProjects(
-        ProjectService service,
+        ProjectRegistry service,
         [Description(ToolDescriptions.PrefixParam)] string prefix = "") =>
         service.ListAsync(prefix);
 
     /// <summary>Stores one record, with duplicate detection, supersession and atomic edges.</summary>
-    [McpServerTool, Description(ToolDescriptions.Remember)]
+    [McpServerTool(ReadOnly = false, Destructive = true), Description(ToolDescriptions.Remember)]
     public static Task<string> Remember(
-        MemoryService service,
+        RecordLifecycle service,
         [Description(ToolDescriptions.ProjectNameParam)] string projectName,
         [Description("The knowledge itself, in the language of the conversation.")] string content,
         [Description(ToolDescriptions.KindParam)] string kind = "",
@@ -53,9 +53,9 @@ public static class ProjectMemoryTools
         service.RememberAsync(projectName, content, kind, title, replaceId, force, links);
 
     /// <summary>Searches memory by meaning; empty query renders an overview.</summary>
-    [McpServerTool, Description(ToolDescriptions.Recall)]
+    [McpServerTool(ReadOnly = false, Destructive = false), Description(ToolDescriptions.Recall)]
     public static Task<string> Recall(
-        MemoryService service,
+        RecordLifecycle service,
         [Description("What to look for, in natural language. Empty — an overview of the newest records.")] string query = "",
         [Description(ToolDescriptions.ProjectNameParam + " Empty — the whole memory (transfers experience across projects).")] string projectName = "",
         [Description(ToolDescriptions.KindParam)] string kind = "",
@@ -63,23 +63,23 @@ public static class ProjectMemoryTools
         service.RecallAsync(query, projectName, kind, limit);
 
     /// <summary>Deletes records by id.</summary>
-    [McpServerTool, Description(ToolDescriptions.Forget)]
+    [McpServerTool(ReadOnly = false, Destructive = true), Description(ToolDescriptions.Forget)]
     public static Task<string> Forget(
-        MemoryService service,
+        RecordLifecycle service,
         [Description("Record id, or several ids comma-separated.")] string ids) =>
         service.ForgetAsync(ids);
 
     /// <summary>Nominates stale records for deletion.</summary>
-    [McpServerTool, Description(ToolDescriptions.ReviewMemory)]
+    [McpServerTool(ReadOnly = true), Description(ToolDescriptions.ReviewMemory)]
     public static Task<string> ReviewMemory(
-        MemoryService service,
+        RecordLifecycle service,
         [Description(ToolDescriptions.ProjectNameParam + " Empty — the whole memory.")] string projectName = "") =>
         service.ReviewAsync(projectName);
 
     /// <summary>Renames a project across records, edges and the registry.</summary>
-    [McpServerTool, Description(ToolDescriptions.RenameProject)]
+    [McpServerTool(ReadOnly = false, Destructive = true), Description(ToolDescriptions.RenameProject)]
     public static Task<string> RenameProject(
-        ProjectService service,
+        ProjectRegistry service,
         [Description("Current name of the project.")] string oldName,
         [Description("New name of the project.")] string newName) =>
         service.RenameAsync(oldName, newName);

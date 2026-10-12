@@ -14,8 +14,8 @@ public sealed class EfProjectStoreTests : IDisposable
     [Fact]
     public async Task Create_RegistersOnceAndKeepsTheDisplayName()
     {
-        Assert.True(await _store.CreateAsync(new ProjectInfo("ProjectA", "a description", DateTimeOffset.UtcNow)));
-        Assert.False(await _store.CreateAsync(new ProjectInfo("projecta", "duplicate", DateTimeOffset.UtcNow)));
+        Assert.True(await _store.TryCreateAsync(new ProjectInfo("ProjectA", "a description", DateTimeOffset.UtcNow)));
+        Assert.False(await _store.TryCreateAsync(new ProjectInfo("projecta", "duplicate", DateTimeOffset.UtcNow)));
 
         var loaded = await _store.GetAsync("projecta");
 
@@ -29,8 +29,8 @@ public sealed class EfProjectStoreTests : IDisposable
     [Fact]
     public async Task List_ReturnsEveryRegisteredProject()
     {
-        await _store.CreateAsync(new ProjectInfo("B", "", DateTimeOffset.UtcNow));
-        await _store.CreateAsync(new ProjectInfo("A", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("B", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("A", "", DateTimeOffset.UtcNow));
 
         Assert.Equal(2, (await _store.ListAsync()).Count);
     }
@@ -38,11 +38,11 @@ public sealed class EfProjectStoreTests : IDisposable
     [Fact]
     public async Task Rename_MovesTheKeyAndRefusesATakenTarget()
     {
-        await _store.CreateAsync(new ProjectInfo("Old", "", DateTimeOffset.UtcNow));
-        await _store.CreateAsync(new ProjectInfo("Taken", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("Old", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("Taken", "", DateTimeOffset.UtcNow));
 
-        Assert.False(await _store.RenameAsync("old", "taken"));
-        Assert.True(await _store.RenameAsync("old", "New"));
+        Assert.False(await _store.TryRenameAsync("old", "taken"));
+        Assert.True(await _store.TryRenameAsync("old", "New"));
         Assert.Null(await _store.GetAsync("old"));
         Assert.Equal("New", (await _store.GetAsync("new"))!.Name);
     }
@@ -51,19 +51,19 @@ public sealed class EfProjectStoreTests : IDisposable
     [Fact]
     public async Task Rename_AllowsChangingOnlyTheCase()
     {
-        await _store.CreateAsync(new ProjectInfo("myproject", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("myproject", "", DateTimeOffset.UtcNow));
 
-        Assert.True(await _store.RenameAsync("myproject", "MyProject"));
+        Assert.True(await _store.TryRenameAsync("myproject", "MyProject"));
         Assert.Equal("MyProject", (await _store.GetAsync("myproject"))!.Name);
     }
 
     [Fact]
     public async Task Delete_ReportsWhetherTheProjectExisted()
     {
-        await _store.CreateAsync(new ProjectInfo("Gone", "", DateTimeOffset.UtcNow));
+        await _store.TryCreateAsync(new ProjectInfo("Gone", "", DateTimeOffset.UtcNow));
 
-        Assert.True(await _store.DeleteAsync("gone"));
-        Assert.False(await _store.DeleteAsync("gone"));
+        Assert.True(await _store.TryDeleteAsync("gone"));
+        Assert.False(await _store.TryDeleteAsync("gone"));
     }
 
     /// Two workspaces may hold a project of the same name; each partitioned store sees its own,
@@ -74,8 +74,8 @@ public sealed class EfProjectStoreTests : IDisposable
         var alpha = _harness.ProjectsIn("alpha");
         var beta = _harness.ProjectsIn("beta");
 
-        Assert.True(await alpha.CreateAsync(new ProjectInfo("Shared", "alpha's", DateTimeOffset.UtcNow)));
-        Assert.True(await beta.CreateAsync(new ProjectInfo("Shared", "beta's", DateTimeOffset.UtcNow)));
+        Assert.True(await alpha.TryCreateAsync(new ProjectInfo("Shared", "alpha's", DateTimeOffset.UtcNow)));
+        Assert.True(await beta.TryCreateAsync(new ProjectInfo("Shared", "beta's", DateTimeOffset.UtcNow)));
 
         Assert.Equal("alpha's", (await alpha.GetAsync("shared"))!.Description);
         Assert.Single(await alpha.ListAsync());

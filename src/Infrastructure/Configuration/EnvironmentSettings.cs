@@ -37,5 +37,5 @@ public static class EnvironmentSettings
 
     /// <summary><c>SIZE_LIMIT_KILOBYTES</c> → <c>SizeLimitKilobytes</c>, <c>A__B</c> → <c>A:B</c>; binding is case-insensitive.</summary>
     internal static string ToConfigurationKey(string variable) =>
-        string.Join(':', variable.Split("__").Select(segment => segment.Replace("_", "")));
+        string.Join(':', variable.Split("__").Select(segment => segment.Replace("_", "", StringComparison.Ordinal)));
 }

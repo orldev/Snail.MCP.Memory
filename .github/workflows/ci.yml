@@ -1,32 +1,21 @@
 name: build and tests
 
-# Every push, on every branch: the tests, and the server as it is published — framework-dependent, since Entity
-# Framework and the ONNX runtime keep it from being native — started and asked over stdio and over HTTP.
+# The shared server CI of Snail.Sdk. Framework-dependent, since Entity Framework and the ONNX runtime keep it from being
+# native: published and asked over stdio and over HTTP, the way the machine runs it.
 
 on:
   push:
   pull_request:
   workflow_dispatch:
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-      - run: dotnet test Snail.MCP.Memory.slnx -c Release
+permissions:
+  contents: read
 
-  published:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-      - run: dotnet publish src -c Release -o published
-      - name: Answers over stdio
-        env:
-          SNAIL_MEMORY_SERVER: ${{ github.workspace }}/published/Snail.MCP.Memory.dll
-        run: dotnet test tests -c Release --filter "FullyQualifiedName~StdioContract|FullyQualifiedName~HttpContract"
+jobs:
+  ci:
+    uses: orldev/Snail.Sdk/.github/workflows/mcp-ci.yml@v1
+    with:
+      name: Snail.MCP.Memory
+      native: false
+      contract-variable: SNAIL_MEMORY_SERVER
+      contract-filter: FullyQualifiedName~StdioContract|FullyQualifiedName~HttpContract

@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Core.Activity;
 using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
-using Snail.Toolkit.Mcp.Http;
+using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Extensions;
 
@@ -32,12 +32,12 @@ public static class ServiceCollectionExtensions
         /// <summary>Registers the background audit unless it is switched off — see <see cref="AuditWorker"/>.</summary>
         public IServiceCollection AddAuditWorker(StorageOptions options)
         {
-            if (!options.ResolveAuditEnabled())
+            if (!options.IsAuditEnabled())
                 return services;
 
             services.AddHostedService(sp => new AuditWorker(
                 sp.GetRequiredService<IAuditStore>(),
-                sp.GetRequiredService<Application.AuditService>(),
+                sp.GetRequiredService<Application.MentionAudit>(),
                 sp.GetRequiredService<TimeProvider>(),
                 sp.GetRequiredService<ILogger<AuditWorker>>(),
                 options.ResolveAuditInterval(),

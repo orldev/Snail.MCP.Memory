@@ -4,16 +4,16 @@ namespace Snail.MCP.Memory.Tests.Application;
 
 /// The record lifecycle end to end over a real database: supersession, duplicate refusal,
 /// fallback recall, access marking, review nominations.
-public sealed class MemoryServiceTests : IDisposable
+public sealed class RecordLifecycleTests : IDisposable
 {
     private readonly MemoryHarness _harness = new();
-    private readonly MemoryService _service;
+    private readonly RecordLifecycle _service;
 
-    public MemoryServiceTests()
+    public RecordLifecycleTests()
     {
-        _service = new MemoryService(
+        _service = new RecordLifecycle(
             _harness.Records, _harness.Projects, _harness.Embedder,
-            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time,
+            new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time,
             duplicateThreshold: 0.95, similarityFloor: 0.5);
     }
 
@@ -130,9 +130,9 @@ public sealed class MemoryServiceTests : IDisposable
     {
         Assert.Null(await FakeEmbedder.Unavailable.TryEmbedAsync("probe", EmbeddingPurpose.Passage));
 
-        var service = new MemoryService(
+        var service = new RecordLifecycle(
             _harness.Records, _harness.Projects, FakeEmbedder.Unavailable,
-            new GraphService(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
+            new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
         await service.RememberAsync("ProjectA", "Архитектура сервера");
 
         var answer = await service.RecallAsync("архитектура");
