@@ -13,21 +13,23 @@ public static class ProjectMemoryTools
 {
     /// <summary>Initializes a project's memory and returns the experience briefing.</summary>
     [McpServerTool, Description(ToolDescriptions.InitProjectMemory)]
-    public static Task<string> InitProjectMemory(
+    public static async Task<string> InitProjectMemory(
         ProjectService service,
+        McpServer server,
+        CancellationToken cancellationToken,
         [Description(ToolDescriptions.NewProjectNameParam)] string projectName = "",
         [Description("Short description of what the project will be — it is embedded and finds similar projects. Optional.")] string description = "",
         [Description("Existing project names to preload experience from, joined by '+'. Optional.")] string seedFrom = "")
     {
         if (!string.IsNullOrWhiteSpace(projectName))
-            return service.InitAsync(projectName, description, seedFrom);
+            return await service.InitAsync(projectName, description, seedFrom);
 
-        var workingDirectory = Directory.GetCurrentDirectory();
+        var workingDirectory = await ClientFolder.FindAsync(server, cancellationToken) ?? Directory.GetCurrentDirectory();
         var fromFolder = DefaultProjectName.FromDirectory(workingDirectory, ServerPaths.Home);
 
         return string.IsNullOrEmpty(fromFolder)
-            ? Task.FromResult(Messages.ProjectNameNotResolved(workingDirectory))
-            : service.InitAsync(fromFolder, description, seedFrom);
+            ? Messages.ProjectNameNotResolved(workingDirectory)
+            : await service.InitAsync(fromFolder, description, seedFrom);
     }
 
     /// <summary>Lists the stored projects, optionally filtered by a name prefix.</summary>

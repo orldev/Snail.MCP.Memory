@@ -15,9 +15,22 @@ public enum Provider
     Postgres
 }
 
+/// <summary>How clients reach the server.</summary>
+public enum Transport
+{
+    /// <summary>One client, which starts the server and owns its standard input and output.</summary>
+    Stdio,
+
+    /// <summary>Every session of the machine through one long-running server on a loopback address.</summary>
+    Http
+}
+
 /// <summary>Server configuration: flat keys from a JSON config file or <c>SNAIL_MCP_MEMORY_*</c> variables; <see cref="Load"/> is the single reader.</summary>
 public sealed class StorageOptions
 {
+    /// <summary>Where the HTTP server listens unless <see cref="Url"/> says otherwise.</summary>
+    public const string DefaultUrl = "http://127.0.0.1:9230";
+
     /// <summary>Database file name inside the data directory.</summary>
     public const string DefaultDatabaseFileName = "memory.db";
 
@@ -49,6 +62,12 @@ public sealed class StorageOptions
 
     /// <summary>Which backend stores the memory. Default: <see cref="Provider.Sqlite"/>.</summary>
     public Provider Provider { get; set; } = Provider.Sqlite;
+
+    /// <summary>Stdio by default; Http keeps one server for every session — see <see cref="Url"/>.</summary>
+    public Transport Transport { get; set; } = Transport.Stdio;
+
+    /// <summary>Loopback address the HTTP server listens on. Empty — <see cref="DefaultUrl"/>.</summary>
+    public string? Url { get; set; }
 
     /// <summary>Data directory. Empty — <see cref="ServerPaths.DefaultDataDirectory"/>.</summary>
     public string? Directory { get; set; }
@@ -98,6 +117,16 @@ public sealed class StorageOptions
             builder.AddJsonFile(Path.GetFullPath(configFile), optional: true, reloadOnChange: false);
 
         return builder.AddEnvironment().Build().Get<StorageOptions>() ?? new StorageOptions();
+    }
+
+    /// <summary>The address to listen on; anything but a loopback address is refused, since nothing guards the endpoint.</summary>
+    public Uri ResolveUrl()
+    {
+        var url = string.IsNullOrWhiteSpace(Url) ? DefaultUrl : Url.Trim();
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.IsLoopback
+            ? uri
+            : throw new InvalidOperationException($"Url '{url}' is not a loopback address: the HTTP server answers anyone who reaches it.");
     }
 
     /// <summary>Configured directory or the default one, with a leading <c>~</c> expanded.</summary>
