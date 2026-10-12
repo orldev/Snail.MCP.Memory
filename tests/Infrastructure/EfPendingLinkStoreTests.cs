@@ -107,11 +107,10 @@ public sealed class EfPendingLinkStoreTests : IDisposable
     public async Task Initialization_AddsThePendingTableToAPreExistingDatabase()
     {
         var tempDir = System.IO.Directory.CreateTempSubdirectory("smupgrade");
+        var connectionString = $"Data Source={Path.Combine(tempDir.FullName, "memory.db")}";
 
         try
         {
-            var connectionString = $"Data Source={Path.Combine(tempDir.FullName, "memory.db")}";
-
             await using (var connection = new SqliteConnection(connectionString))
             {
                 await connection.OpenAsync();
@@ -137,7 +136,7 @@ public sealed class EfPendingLinkStoreTests : IDisposable
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
+            SqlitePools.Release(connectionString);
             tempDir.Delete(recursive: true);
         }
     }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Infrastructure.Embeddings;
+using Snail.MCP.Memory.Tests.TestDoubles;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -13,7 +14,7 @@ public sealed class StorageRegistrationTests : IDisposable
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        SqlitePools.Release(new StorageOptions { Directory = _tempDir }.ResolveConnectionString());
         if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, recursive: true);
     }
 

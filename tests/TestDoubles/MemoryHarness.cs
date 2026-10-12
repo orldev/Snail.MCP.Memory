@@ -67,7 +67,7 @@ public sealed class MemoryHarness : IDisposable
     public void Dispose()
     {
         Database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        SqlitePools.Release(_connectionString);
         if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, recursive: true);
     }
 
