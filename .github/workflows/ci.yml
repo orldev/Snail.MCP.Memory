@@ -1,7 +1,7 @@
 name: build and tests
 
 # Every push, on every branch: the tests, and the server as it is published — framework-dependent, since Entity
-# Framework and the ONNX runtime keep it from being native — started and asked over stdio.
+# Framework and the ONNX runtime keep it from being native — started and asked over stdio and over HTTP.
 
 on:
   push:
@@ -29,4 +29,4 @@ jobs:
       - name: Answers over stdio
         env:
           SNAIL_MEMORY_SERVER: ${{ github.workspace }}/published/Snail.MCP.Memory.dll
-        run: dotnet test tests -c Release --filter "FullyQualifiedName~StdioContract"
+        run: dotnet test tests -c Release --filter "FullyQualifiedName~StdioContract|FullyQualifiedName~HttpContract"
