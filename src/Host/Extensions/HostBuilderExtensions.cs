@@ -13,10 +13,8 @@ public static class HostBuilderExtensions
         /// Wires logging to stderr, storage from <see cref="StorageOptions.Load"/>, the idle
         /// watchdog and the MCP server over stdio with every tool in the assembly.
         /// </summary>
-        public HostApplicationBuilder ConfigureMcpServer()
+        public HostApplicationBuilder ConfigureMcpServer(StorageOptions options)
         {
-            var options = StorageOptions.Load();
-
             builder.Services
                 .AddStorage(options)
                 .AddIdleShutdownWatcher(options)

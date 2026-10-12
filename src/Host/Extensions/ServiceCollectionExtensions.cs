@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Core.Activity;
@@ -53,15 +54,28 @@ public static class ServiceCollectionExtensions
         /// </summary>
         public IServiceCollection AddMcpTransport()
         {
-            services
-                .AddMcpServer()
-                .WithStdioServerTransport()
-                .WithToolsFromAssembly()
-                .WithRequestFilters(filters => filters
-                    .AddCallToolFilter(TouchActivity));
+            services.AddMemoryServer().WithStdioServerTransport();
 
             return services;
         }
+
+        /// <summary>The same server over Streamable HTTP, one session per client; see <see cref="HttpServerHost"/>.</summary>
+        /// <remarks>A client that opens with initialize keeps a session: the server can then ask it for its roots, which is how
+        /// <c>init_project_memory</c> finds the project of a client it did not start in.</remarks>
+        public IServiceCollection AddMcpHttpTransport()
+        {
+            services.AddMemoryServer().WithHttpTransport(options =>
+                options.SessionMode = HttpServerSessionMode.StatefulForInitializeClients);
+
+            return services;
+        }
+
+        private IMcpServerBuilder AddMemoryServer() =>
+            services
+                .AddMcpServer()
+                .WithToolsFromAssembly()
+                .WithRequestFilters(filters => filters
+                    .AddCallToolFilter(TouchActivity));
     }
 
     private static McpRequestHandler<TParams, TResult> TouchActivity<TParams, TResult>(
