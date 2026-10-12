@@ -151,6 +151,8 @@ Environment variables win over the file.
 | `EMBEDDING_DIMENSIONS` | `384` | Vector length of the configured model — change only together with the model |
 | `DUPLICATE_THRESHOLD` | `0.95` | Similarity above which `remember` refuses a near-duplicate and offers to supersede the old record instead |
 | `SIMILARITY_FLOOR` | `0.75` | Similarity below which a search hit is dropped. Raise to ~`0.8` if recall feels noisy, lower if it misses things |
+| `TRANSPORT` | `Stdio` | `Http` runs one server for every session of the machine — see [One server for every session](#one-server-for-every-session) |
+| `URL` | `http://127.0.0.1:9230` | Where the HTTP server listens; only a loopback address is accepted |
 | `IDLE_TIMEOUT_MINUTES` | `60` | Minutes without a tool call before an orphaned server process shuts itself down |
 | `AUDIT_INTERVAL_DAYS` | `7` | Days between [background audit](#pending-link-suggestions) runs; `0` disables the audit |
 
@@ -194,6 +196,27 @@ The protocol carries the tool descriptions — enough for basic use. The full in
    If you registered the server under a name other than `mem0`, adjust the `mcp__mem0__` prefix inside the files to match.
 
 2. **Memory rules for the agent** — [server-instructions.md](server-instructions.md) is the full instruction set: the kind vocabulary, when to save without being asked, when to search before proposing, how to self-heal wrong records. Paste its content into your agent's instruction file — `~/.claude/CLAUDE.md` for Claude Code, the system prompt of a custom agent, or wherever your client keeps standing instructions. The agent works without it, but with it the memory maintains itself: the rules are what turns the tools into a habit.
+
+## One server for every session
+
+Over stdio every Claude session starts a server of its own — the runtime, the embedding model and a database
+connection each time, ~115 MB per session. With `TRANSPORT=Http` one server answers them all: five sessions measured
+136 MB together, and a new session is answered in 12 ms instead of ~160.
+
+On macOS launchd keeps it running. Publishing with `-p:Install=true` writes the job, with this machine's paths, to
+`~/.snail-mcp/Snail.MCP.Memory/com.snail.mcp.memory.plist` (from [deploy/](deploy/com.snail.mcp.memory.plist)) and
+restarts it when it is loaded. Loading it is done once:
+
+```bash
+cp ~/.snail-mcp/Snail.MCP.Memory/com.snail.mcp.memory.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.snail.mcp.memory.plist
+claude mcp add -s user --transport http mem0 http://127.0.0.1:9230/mcp
+```
+
+Settings other than the transport go into `~/.config/snail-mcp-memory/config.json`. `init_project_memory` without a
+name asks the client for the folder it works in (MCP roots), since the server's own folder is nobody's project. The
+endpoint has no key: it listens on loopback only and refuses any request that carries an `Origin`, which every
+browser page sends and no agent client does.
 
 ## Sharing one database
 

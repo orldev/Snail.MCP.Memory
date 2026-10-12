@@ -11,6 +11,8 @@
             Framework and the ONNX runtime keep it from being a native program.
         -->
         <SnailMcpName>Snail.MCP.Memory</SnailMcpName>
+        <!-- One server for every session, kept running by launchd: deploy/com.snail.mcp.memory.plist. -->
+        <SnailMcpLaunchAgent>$(MSBuildProjectDirectory)/../deploy/com.snail.mcp.memory.plist</SnailMcpLaunchAgent>
 <!--        <Version>0.1.1</Version>-->
     </PropertyGroup>
 

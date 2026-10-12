@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    The one Memory server of this Mac, over HTTP on 127.0.0.1:9230, started at login and again whenever it ends.
+    Publishing with -p:Install=true writes this job with the machine's paths to ~/.snail-mcp/Snail.MCP.Memory/ and
+    restarts it when it is loaded. Settings other than the transport live in ~/.config/snail-mcp-memory/config.json.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.snail.mcp.memory</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{DOTNET}}</string>
+        <string>{{CURRENT}}/Snail.MCP.Memory.dll</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>{{HOME}}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SNAIL_MCP_MEMORY_TRANSPORT</key>
+        <string>Http</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/Library/Logs/Snail.MCP.Memory.log</string>
+</dict>
+</plist>
