@@ -25,7 +25,7 @@
         },
         {
           "name": "SNAIL_MCP_MEMORY_DIRECTORY",
-          "description": "Data directory. Default: ~/.snail-mcp-memory.",
+          "description": "Data directory. Default: ~/.s3l-mcp-memory.",
           "isRequired": false
         },
         {
