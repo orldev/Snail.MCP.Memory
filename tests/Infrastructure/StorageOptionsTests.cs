@@ -1,12 +1,12 @@
 using System.Collections;
-using Microsoft.Extensions.Configuration;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Tests.Infrastructure;
 
 /// A variable name is a public contract — it is what a user writes into the MCP client config —
 /// so the mapping onto option properties is pinned here rather than left to the binder.
-public sealed class EnvironmentSettingsTests
+public sealed class StorageOptionsTests
 {
     [Fact]
     public void PrefixedVariables_BindOntoStorageOptions()
@@ -99,15 +99,54 @@ public sealed class EnvironmentSettingsTests
     [Fact]
     public void VariablesOfOtherServersAndTheConfigPath_AreIgnored()
     {
-        var read = EnvironmentSettings.Read(new Hashtable
+        var options = Bind(new Hashtable
         {
             ["SNAIL_MCP_FIGMA_DIRECTORY"] = "/tmp/figma",
             ["SNAIL_MCP_MEMORY_CONFIG"] = "/tmp/config.json",
             ["PATH"] = "/usr/bin",
-            ["SNAIL_MCP_MEMORY_DIRECTORY"] = "/tmp/memory",
+            ["SNAIL_MCP_MEMORY_WORKSPACE"] = "backend",
         });
 
-        Assert.Equal([new KeyValuePair<string, string?>("DIRECTORY", "/tmp/memory")], read);
+        Assert.Null(options.Directory);
+        Assert.Equal("backend", options.ResolveWorkspace());
+    }
+
+    /// The settings file is where a machine's settings live; a key written there reaches the options as its variable would.
+    [Fact]
+    public void SettingsFile_ReachesTheOptions()
+    {
+        var file = WriteSettings("""{ "Directory": "/tmp/from-file", "IdleTimeoutMinutes": 20 }""");
+
+        try
+        {
+            var options = StorageOptions.Load(file, new Hashtable());
+
+            Assert.Equal("/tmp/from-file", options.Directory);
+            Assert.Equal(TimeSpan.FromMinutes(20), options.ResolveIdleTimeout());
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// A variable set for one start overrides the file for that start only, and the rest of the file still applies.
+    [Fact]
+    public void Variable_WinsOverTheSettingsFile()
+    {
+        var file = WriteSettings("""{ "Directory": "/tmp/from-file", "IdleTimeoutMinutes": 20 }""");
+
+        try
+        {
+            var options = StorageOptions.Load(file, new Hashtable { ["SNAIL_MCP_MEMORY_DIRECTORY"] = "/tmp/from-variable" });
+
+            Assert.Equal("/tmp/from-variable", options.Directory);
+            Assert.Equal(TimeSpan.FromMinutes(20), options.ResolveIdleTimeout());
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 
     /// Underscores inside a segment are dropped and '__' becomes a path separator; the resulting
@@ -126,9 +165,14 @@ public sealed class EnvironmentSettingsTests
         Assert.Equal(Path.Combine(ServerPaths.Home, "memory"), options.ResolveDirectory());
     }
 
-    private static StorageOptions Bind(IDictionary variables) =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(EnvironmentSettings.Read(variables))
-            .Build()
-            .Get<StorageOptions>() ?? new StorageOptions();
+    private static StorageOptions Bind(IDictionary variables) => StorageOptions.Load(file: null, variables);
+
+    private static string WriteSettings(string json)
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"smsettings-{Guid.NewGuid()}.json");
+
+        File.WriteAllText(file, json);
+
+        return file;
+    }
 }

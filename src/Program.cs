@@ -4,7 +4,7 @@ using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
 
-ServerFolders.MoveFromSnailNames("memory");
+ServerFolders.MoveFromSnailNames(StorageOptions.ServerName);
 
 var options = StorageOptions.Load();
 

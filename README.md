@@ -124,7 +124,10 @@ All settings are optional environment variables. This example lists **all of the
 }
 ```
 
-The same keys can live in a JSON file instead — `~/.s3l-mcp-memory.json` (also read: `SNAIL_MCP_MEMORY_CONFIG` path, `./.s3l-mcp-memory.json`, `./s3l-mcp-memory.json`, `~/.config/s3l-mcp-memory/config.json`; each `snail-mcp-memory` name of before is still read after its `s3l-mcp-memory` one) — with bare names inside:
+The same keys can live in the settings file instead, `~/.config/s3l-mcp-memory/config.json`, with bare names inside. It is
+found by the one chain of every Snail server (Snail.Sdk's `ServerSettings`): a file named in `SNAIL_MCP_MEMORY_CONFIG`
+is the only one read, and when it is missing no file is; otherwise the first that exists of `./.s3l-mcp-memory.json`,
+`./s3l-mcp-memory.json`, `~/.config/s3l-mcp-memory/config.json`, `~/.s3l-mcp-memory.json`:
 
 ```json
 {
@@ -134,7 +137,9 @@ The same keys can live in a JSON file instead — `~/.s3l-mcp-memory.json` (also
 }
 ```
 
-Environment variables win over the file.
+Environment variables win over the file. A secret — a PostgreSQL connection string with its password — belongs in the
+settings file (`chmod 600 ~/.config/s3l-mcp-memory/config.json`), never in a client's registration or a launchd job:
+those travel wherever they are copied.
 
 ### What each setting means
 
@@ -227,12 +232,12 @@ Two situations, two mechanisms:
 
 ## PostgreSQL
 
-For a shared or backed-up memory, point the server at PostgreSQL with the [pgvector](https://github.com/pgvector/pgvector) extension available (the `pgvector/pgvector` Docker images ship it):
+For a shared or backed-up memory, point the server at PostgreSQL with the [pgvector](https://github.com/pgvector/pgvector) extension available (the `pgvector/pgvector` Docker images ship it). The connection string carries a password, so it goes into `~/.config/s3l-mcp-memory/config.json` (`chmod 600`):
 
 ```json
-"env": {
-  "SNAIL_MCP_MEMORY_PROVIDER": "Postgres",
-  "SNAIL_MCP_MEMORY_CONNECTION_STRING": "Host=db.example.com;Database=memory;Username=snail;Password=..."
+{
+  "Provider": "Postgres",
+  "ConnectionString": "Host=db.example.com;Database=memory;Username=snail;Password=..."
 }
 ```
 

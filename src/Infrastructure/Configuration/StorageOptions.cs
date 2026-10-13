@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Infrastructure.Configuration;
 
@@ -26,9 +28,12 @@ public enum Transport
     Http
 }
 
-/// <summary>Server configuration: flat keys from a JSON config file or <c>SNAIL_MCP_MEMORY_*</c> variables; <see cref="Load"/> is the single reader.</summary>
+/// <summary>Server configuration: flat keys from the settings file or <c>SNAIL_MCP_MEMORY_*</c> variables; <see cref="Load()"/> is the single reader.</summary>
 public sealed class StorageOptions
 {
+    /// <summary>The server's short name, which names its settings file and its variables.</summary>
+    public const string ServerName = "memory";
+
     /// <summary>Where the HTTP server listens unless <see cref="Url"/> says otherwise.</summary>
     public const string DefaultUrl = "http://127.0.0.1:9230";
 
@@ -110,16 +115,15 @@ public sealed class StorageOptions
     /// <summary>Days between background audit runs. Empty — <see cref="DefaultAuditIntervalDays"/>; 0 — the audit is off.</summary>
     public int? AuditIntervalDays { get; set; }
 
-    /// <summary>Reads options from the config file and the environment; the environment wins.</summary>
-    public static StorageOptions Load()
-    {
-        var builder = new ConfigurationBuilder();
+    /// <summary>Reads options from the settings file chain of <see cref="ServerSettings"/> and the variables, which win.</summary>
+    public static StorageOptions Load() => Load(ServerSettings.FileOf(ServerName), Environment.GetEnvironmentVariables());
 
-        if (ServerPaths.FindConfigFile() is { } configFile)
-            builder.AddJsonFile(Path.GetFullPath(configFile), optional: true, reloadOnChange: false);
-
-        return builder.AddEnvironment().Build().Get<StorageOptions>() ?? new StorageOptions();
-    }
+    /// <summary>Reads options from <paramref name="file"/>, when there is one, and the server's variables among <paramref name="variables"/>.</summary>
+    internal static StorageOptions Load(string? file, IDictionary variables) =>
+        new ConfigurationBuilder()
+            .AddServerSettings(ServerName, file, variables)
+            .Build()
+            .Get<StorageOptions>() ?? new StorageOptions();
 
     /// <summary>The address to listen on; the host refuses any that is not a loopback one.</summary>
     public Uri ResolveUrl() => new(string.IsNullOrWhiteSpace(Url) ? DefaultUrl : Url.Trim(), UriKind.Absolute);
