@@ -9,7 +9,7 @@ public static class HostBuilderExtensions
     extension(HostApplicationBuilder builder)
     {
         /// <summary>
-        /// Wires logging to stderr, storage from <see cref="StorageOptions.Load"/>, the idle
+        /// Wires logging to stderr, storage from <see cref="StorageOptions.Load()"/>, the idle
         /// watchdog and the MCP server over stdio with every tool in the assembly.
         /// </summary>
         public HostApplicationBuilder ConfigureMcpServer(StorageOptions options)

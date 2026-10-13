@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Tools;
+using Snail.Sdk.Mcp.Hosting;
 using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
@@ -18,6 +19,10 @@ public class StdioContractTests
     private const string ProtocolVersion = "2025-06-18";
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
+
+    private static readonly string Prefix = ServerSettings.PrefixOf(StorageOptions.ServerName);
+
+    private static readonly string ConfigVariable = ServerSettings.FileVariableOf(StorageOptions.ServerName);
 
     [Fact]
     public async Task ServerAnswersTheHandshakeAndKeepsStdoutCleanOfEverythingButJsonRpc()
@@ -116,9 +121,9 @@ public class StdioContractTests
         {
             var environment = new Dictionary<string, string?>
             {
-                [EnvironmentSettings.Prefix + "DIRECTORY"] = dataDirectory,
-                [EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false",
-                [EnvironmentSettings.ConfigPathVariable] = null,
+                [Prefix + "DIRECTORY"] = dataDirectory,
+                [Prefix + "EMBEDDING_ENABLED"] = "false",
+                [ConfigVariable] = ServerProgram.NoSettingsFile,
             };
 
             await using var client = await ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment);
@@ -167,9 +172,9 @@ public class StdioContractTests
 
             foreach (var argument in arguments)
                 start.ArgumentList.Add(argument);
-            start.Environment[EnvironmentSettings.Prefix + "DIRECTORY"] = dataDirectory;
-            start.Environment[EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false";
-            start.Environment.Remove(EnvironmentSettings.ConfigPathVariable);
+            start.Environment[Prefix + "DIRECTORY"] = dataDirectory;
+            start.Environment[Prefix + "EMBEDDING_ENABLED"] = "false";
+            start.Environment[ConfigVariable] = ServerProgram.NoSettingsFile;
             start.Environment["HOME"] = ServerProgram.Home;
             start.Environment["USERPROFILE"] = ServerProgram.Home;
 

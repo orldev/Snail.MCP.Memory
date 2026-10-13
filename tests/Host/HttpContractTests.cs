@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
@@ -14,6 +15,10 @@ namespace Snail.MCP.Memory.Tests.Host;
 public sealed class HttpContractTests : IAsyncLifetime
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
+
+    private static readonly string Prefix = ServerSettings.PrefixOf(StorageOptions.ServerName);
+
+    private static readonly string ConfigVariable = ServerSettings.FileVariableOf(StorageOptions.ServerName);
 
     private readonly string _dataDirectory = Directory.CreateTempSubdirectory("snail-http-").FullName;
     private readonly Uri _endpoint = new($"http://127.0.0.1:{FreePort()}/mcp");
@@ -29,12 +34,12 @@ public sealed class HttpContractTests : IAsyncLifetime
             RedirectStandardError = true,
         };
 
-        start.Environment[EnvironmentSettings.Prefix + "TRANSPORT"] = "Http";
-        start.Environment[EnvironmentSettings.Prefix + "URL"] = new Uri(_endpoint, "/").ToString();
-        start.Environment[EnvironmentSettings.Prefix + "DIRECTORY"] = _dataDirectory;
-        start.Environment[EnvironmentSettings.Prefix + "EMBEDDING_ENABLED"] = "false";
-        start.Environment[EnvironmentSettings.Prefix + "AUDIT_INTERVAL_DAYS"] = "0";
-        start.Environment.Remove(EnvironmentSettings.ConfigPathVariable);
+        start.Environment[Prefix + "TRANSPORT"] = "Http";
+        start.Environment[Prefix + "URL"] = new Uri(_endpoint, "/").ToString();
+        start.Environment[Prefix + "DIRECTORY"] = _dataDirectory;
+        start.Environment[Prefix + "EMBEDDING_ENABLED"] = "false";
+        start.Environment[Prefix + "AUDIT_INTERVAL_DAYS"] = "0";
+        start.Environment[ConfigVariable] = ServerProgram.NoSettingsFile;
         start.Environment["HOME"] = ServerProgram.Home;
         start.Environment["USERPROFILE"] = ServerProgram.Home;
 
