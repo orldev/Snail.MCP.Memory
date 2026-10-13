@@ -78,9 +78,37 @@ public sealed class StorageOptionsTests
         Assert.Equal(StorageOptions.DefaultEmbeddingModelUrl, options.ResolveEmbeddingModelUrl());
         Assert.Equal(StorageOptions.DefaultEmbeddingTokenizerUrl, options.ResolveEmbeddingTokenizerUrl());
         Assert.Equal(StorageOptions.DefaultEmbeddingDimensions, options.ResolveEmbeddingDimensions());
+        Assert.Equal(TimeSpan.FromMinutes(StorageOptions.DefaultEmbeddingIdleMinutes), options.ResolveEmbeddingIdlePeriod());
         Assert.Equal(StorageOptions.DefaultDuplicateThreshold, options.ResolveDuplicateThreshold());
         Assert.Equal(Path.Combine("/tmp/memory", StorageOptions.ModelsDirectoryName, "model.onnx"),
             options.ResolveEmbeddingModelPath());
+    }
+
+    /// An explicit 0 keeps the model for good, and a negative value is no setting at all.
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("0", 0)]
+    [InlineData("-5", 30)]
+    public void EmbeddingIdleMinutes_ResolveToTheIdlePeriod(string value, int minutes)
+    {
+        var options = Bind(new Hashtable { ["SNAIL_MCP_MEMORY_EMBEDDING_IDLE_MINUTES"] = value });
+
+        Assert.Equal(TimeSpan.FromMinutes(minutes), options.ResolveEmbeddingIdlePeriod());
+    }
+
+    [Fact]
+    public void EmbeddingIdleMinutes_ComesFromTheSettingsFile()
+    {
+        var file = WriteSettings("""{ "EmbeddingIdleMinutes": 0 }""");
+
+        try
+        {
+            Assert.Equal(TimeSpan.Zero, StorageOptions.Load(file, new Hashtable()).ResolveEmbeddingIdlePeriod());
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 
     /// A bare path is a convenience; a full connection string passes through untouched, and an

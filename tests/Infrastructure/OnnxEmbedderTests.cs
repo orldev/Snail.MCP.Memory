@@ -17,7 +17,7 @@ public sealed class OnnxEmbedderTests
         var missing = Path.Combine(Path.GetTempPath(), $"smonnx-{Guid.NewGuid()}");
         using var embedder = new OnnxEmbedder(
             Path.Combine(missing, "model.onnx"), Path.Combine(missing, "tokenizer.model"),
-            UnreachableUrl, UnreachableUrl, StorageOptions.DefaultEmbeddingDimensions);
+            UnreachableUrl, UnreachableUrl, StorageOptions.DefaultEmbeddingDimensions, TimeSpan.Zero, TimeProvider.System);
 
         Assert.Null(await embedder.TryEmbedAsync("text", EmbeddingPurpose.Passage));
         Assert.Null(await embedder.TryEmbedAsync("text", EmbeddingPurpose.Query));

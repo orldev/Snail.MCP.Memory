@@ -35,7 +35,7 @@ public static class StorageServiceCollectionExtensions
         private IServiceCollection AddEmbedder(StorageOptions options)
         {
             services.AddSingleton<IEmbedder>(sp => options.IsEmbeddingEnabled()
-                ? new OnnxEmbedder(options, sp.GetRequiredService<ILogger<OnnxEmbedder>>())
+                ? new OnnxEmbedder(options, sp.GetRequiredService<ILogger<OnnxEmbedder>>(), sp.GetRequiredService<TimeProvider>())
                 : new NullEmbedder(options.ResolveEmbeddingDimensions()));
 
             return services;

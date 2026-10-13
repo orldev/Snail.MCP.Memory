@@ -114,6 +114,7 @@ All settings are optional environment variables. This example lists **all of the
         "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL": "https://huggingface.co/Xenova/multilingual-e5-small/resolve/main/onnx/model_quantized.onnx",
         "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL": "https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentencepiece.bpe.model",
         "SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS": "384",
+        "SNAIL_MCP_MEMORY_EMBEDDING_IDLE_MINUTES": "30",
         "SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD": "0.95",
         "SNAIL_MCP_MEMORY_SIMILARITY_FLOOR": "0.75",
         "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES": "60",
@@ -154,6 +155,7 @@ those travel wherever they are copied.
 | `EMBEDDING_TOKENIZER_PATH` | `{Directory}/models/sentencepiece.bpe.model` | Where the SentencePiece tokenizer lives; downloaded on first use |
 | `EMBEDDING_MODEL_URL` / `EMBEDDING_TOKENIZER_URL` | multilingual-e5-small | Where the files are downloaded from when missing |
 | `EMBEDDING_DIMENSIONS` | `384` | Vector length of the configured model — change only together with the model |
+| `EMBEDDING_IDLE_MINUTES` | `30` | Minutes without an embedding before the model is released from memory; the next embedding loads it again (~0.4 s). `0` keeps it loaded for good |
 | `DUPLICATE_THRESHOLD` | `0.95` | Similarity above which `remember` refuses a near-duplicate and offers to supersede the old record instead |
 | `SIMILARITY_FLOOR` | `0.75` | Similarity below which a search hit is dropped. Raise to ~`0.8` if recall feels noisy, lower if it misses things |
 | `TRANSPORT` | `Stdio` | `Http` runs one server for every session of the machine — see [One server for every session](#one-server-for-every-session) |
@@ -249,6 +251,7 @@ Nothing else changes — same tools, same behavior, tables and vector indexes ar
 - **Offline**: after the one-time model download the server needs no network at all.
 - **Lifecycle**: `event` records expire after 90 days; durable kinds are only ever deleted by an explicit, confirmed `forget`.
 - **Housekeeping**: an orphaned server process shuts itself down after an hour of silence (`IDLE_TIMEOUT_MINUTES`).
+- **Memory when idle**: the embedding model is most of what the server holds; after half an hour without an embedding it is released (~150 MB back, 321 → 173 MB measured), and the next semantic call loads it again in ~0.4 s (`EMBEDDING_IDLE_MINUTES`). The server logs both on stderr.
 - **Your data** is yours: one SQLite file at `~/.s3l-mcp-memory/memory.db`, inspectable with any SQLite browser.
 
 ## Development
