@@ -203,7 +203,7 @@ Over stdio every Claude session starts a server of its own — the runtime, the 
 connection each time, ~115 MB per session. With `TRANSPORT=Http` one server answers them all: five sessions measured
 136 MB together, and a new session is answered in 12 ms instead of ~160.
 
-On macOS launchd keeps it running. Publishing with `-p:Install=true` writes the job, with this machine's paths, to
+On macOS launchd keeps it running. Publishing with `-p:SnailMcpInstall=true` writes the job, with this machine's paths, to
 `~/.s3l-mcp/Snail.MCP.Memory/s3l.mcp.memory.plist` (from [deploy/](deploy/s3l.mcp.memory.plist)) and
 restarts it when it is loaded. Loading it is done once:
 
@@ -258,6 +258,6 @@ Published from the repository beside the other Snail MCP servers, it lives in `~
 from being a native program.
 
 ```bash
-dotnet publish src -c Release -p:Install=true
+dotnet publish src -c Release -p:SnailMcpInstall=true
 claude mcp add -s user mem0 -e SNAIL_MCP_MEMORY_PROVIDER=Sqlite -e SNAIL_MCP_MEMORY_DIRECTORY=~/.csharp-tools-memory -- dotnet ~/.s3l-mcp/Snail.MCP.Memory/current/Snail.MCP.Memory.dll
 ```

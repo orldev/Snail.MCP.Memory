@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
     The one Memory server of this Mac, over HTTP on 127.0.0.1:9230, started at login and again whenever it ends.
-    Publishing with -p:Install=true writes this job with the machine's paths to ~/.s3l-mcp/Snail.MCP.Memory/ and
+    Publishing with -p:SnailMcpInstall=true writes this job with the machine's paths to ~/.s3l-mcp/Snail.MCP.Memory/ and
     restarts it when it is loaded. Settings other than the transport live in ~/.config/s3l-mcp-memory/config.json.
 -->
 <plist version="1.0">
