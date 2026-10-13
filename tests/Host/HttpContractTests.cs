@@ -86,7 +86,7 @@ public sealed class HttpContractTests : IAsyncLifetime
 
         var read = await reader.CallToolAsync("recall", new Dictionary<string, object?> { ["projectName"] = "HttpProbe" }, cancellationToken: cancellation.Token);
 
-        Assert.Contains("one server for every session", ServerProgram.Text(read), StringComparison.Ordinal);
+        Assert.Contains("one server for every session", read.Text(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class HttpContractTests : IAsyncLifetime
 
         var answer = await client.CallToolAsync("init_project_memory", new Dictionary<string, object?>(), cancellationToken: cancellation.Token);
 
-        Assert.Contains("RootsProbe", ServerProgram.Text(answer), StringComparison.Ordinal);
+        Assert.Contains("RootsProbe", answer.Text(), StringComparison.Ordinal);
     }
 
     [Fact]
