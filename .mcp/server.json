@@ -65,6 +65,12 @@
           "default": "384"
         },
         {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_IDLE_MINUTES",
+          "description": "Minutes without an embedding before the model is released from memory; the next embedding loads it again. 0 keeps it loaded. Default: 30.",
+          "isRequired": false,
+          "default": "30"
+        },
+        {
           "name": "SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD",
           "description": "Cosine similarity above which remember refuses a near-duplicate and offers supersession. Default: 0.95.",
           "isRequired": false,
@@ -155,6 +161,12 @@
           "description": "Vector length of the configured model. Default: 384.",
           "isRequired": false,
           "default": "384"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_IDLE_MINUTES",
+          "description": "Minutes without an embedding before the model is released from memory; the next embedding loads it again. 0 keeps it loaded. Default: 30.",
+          "isRequired": false,
+          "default": "30"
         },
         {
           "name": "SNAIL_MCP_MEMORY_DUPLICATE_THRESHOLD",

@@ -26,4 +26,10 @@ internal static partial class Log
 
     [LoggerMessage(EventId = 6, Level = LogLevel.Warning, Message = "{Message}")]
     internal static partial void EmbedderFailed(ILogger logger, Exception failure, string message);
+
+    [LoggerMessage(EventId = 7, Level = LogLevel.Information, Message = "Embedding model loaded in {Elapsed:F0} ms.")]
+    internal static partial void ModelLoaded(ILogger logger, double elapsed);
+
+    [LoggerMessage(EventId = 8, Level = LogLevel.Information, Message = "Embedding model released after {IdleFor} without use; the next embedding loads it again.")]
+    internal static partial void ModelUnloaded(ILogger logger, TimeSpan idleFor);
 }

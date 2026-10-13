@@ -66,6 +66,14 @@ public sealed class StorageOptions
     /// <summary>Days between background audit runs.</summary>
     public const int DefaultAuditIntervalDays = 7;
 
+    /// <summary>Minutes without an embedding before the model is released from memory.</summary>
+    /// <remarks>
+    /// Released, the model gives back ~150 MB of the shared server's footprint, and the next embedding loads it again in
+    /// 0.4 s, 1.6 s for a process's first load (2026-10-13). Hooks call the server at every session's start and stop, so
+    /// half an hour without an embedding is a night, a weekend or a lunch, not a pause between two questions.
+    /// </remarks>
+    public const int DefaultEmbeddingIdleMinutes = 30;
+
     /// <summary>Which backend stores the memory. Default: <see cref="Provider.Sqlite"/>.</summary>
     public Provider Provider { get; set; } = Provider.Sqlite;
 
@@ -102,6 +110,9 @@ public sealed class StorageOptions
 
     /// <summary>Vector length of the configured model. Empty — <see cref="DefaultEmbeddingDimensions"/>.</summary>
     public int? EmbeddingDimensions { get; set; }
+
+    /// <summary>Minutes without an embedding before the model is released. Empty — <see cref="DefaultEmbeddingIdleMinutes"/>; 0 — never.</summary>
+    public int? EmbeddingIdleMinutes { get; set; }
 
     /// <summary>Duplicate similarity threshold of remember. Empty — <see cref="DefaultDuplicateThreshold"/>.</summary>
     public double? DuplicateThreshold { get; set; }
@@ -177,6 +188,14 @@ public sealed class StorageOptions
     /// <summary>Configured vector length or the default one.</summary>
     public int ResolveEmbeddingDimensions() =>
         EmbeddingDimensions is > 0 ? EmbeddingDimensions.Value : DefaultEmbeddingDimensions;
+
+    /// <summary>How long the model may go unused before it is released: the configured minutes, zero for never, the default half hour otherwise.</summary>
+    public TimeSpan ResolveEmbeddingIdlePeriod() => EmbeddingIdleMinutes switch
+    {
+        0 => TimeSpan.Zero,
+        > 0 => TimeSpan.FromMinutes(EmbeddingIdleMinutes.Value),
+        _ => TimeSpan.FromMinutes(DefaultEmbeddingIdleMinutes)
+    };
 
     /// <summary>Configured duplicate threshold or the default one.</summary>
     public double ResolveDuplicateThreshold() =>

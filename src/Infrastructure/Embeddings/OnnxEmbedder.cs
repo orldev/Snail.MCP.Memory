@@ -1,62 +1,73 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
-using Microsoft.ML.Tokenizers;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 
 namespace Snail.MCP.Memory.Infrastructure.Embeddings;
 
 /// <summary>In-process <see cref="IEmbedder"/>: a multilingual sentence transformer run through ONNX Runtime.</summary>
 /// <remarks>
-/// Initialization is lazy and failure is a state: any failure is logged once and the embedder
-/// answers <c>null</c> forever after — knowledge is never refused over a failed download.
-/// XLM-RoBERTa quirks handled here: SentencePiece ids carry the fairseq offset, and e5 needs
-/// <c>query:</c>/<c>passage:</c> prefixes.
+/// <para>
+/// The files are downloaded once, before the first embedding. The model is loaded for the first embedding and released
+/// after an idle period without one, then loaded again for the next — see <see cref="OnDemandModel{TModel}"/>.
+/// </para>
+/// <para>
+/// Failure is a state: any failure is logged once and the embedder answers <c>null</c> forever after — knowledge is
+/// never refused over a failed download. e5 needs <c>query:</c>/<c>passage:</c> prefixes.
+/// </para>
 /// </remarks>
-/// <param name="modelPath">Where the ONNX model lives, or is downloaded to.</param>
-/// <param name="tokenizerPath">Where the SentencePiece tokenizer lives, or is downloaded to.</param>
-/// <param name="modelUrl">Where the model is downloaded from when it is missing.</param>
-/// <param name="tokenizerUrl">Where the tokenizer is downloaded from when it is missing.</param>
-/// <param name="dimensions">The length of the vectors the model answers.</param>
-/// <param name="logger">Where the one failure is told; nowhere when omitted.</param>
-public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string modelUrl, string tokenizerUrl,
-    int dimensions, ILogger? logger = null) : IEmbedder, IDisposable
+public sealed class OnnxEmbedder : IEmbedder, IDisposable
 {
     private const string QueryPrefix = "query: ";
     private const string PassagePrefix = "passage: ";
 
-    /// <summary>Model input limit is 512; two special tokens are added around the pieces.</summary>
-    private const int MaxPieceCount = 510;
+    private readonly string _modelPath;
+    private readonly string _tokenizerPath;
+    private readonly string _modelUrl;
+    private readonly string _tokenizerUrl;
+    private readonly ILogger _logger;
+    private readonly SemaphoreSlim _downloadLock = new(1, 1);
+    private readonly OnDemandModel<OnnxModel> _model;
 
-    private const long BosId = 0;
-    private const long EosId = 2;
-    private const long UnknownId = 3;
-    private const long FairseqOffset = 1;
-
-    private readonly string _modelPath = modelPath;
-    private readonly string _tokenizerPath = tokenizerPath;
-    private readonly string _modelUrl = modelUrl;
-    private readonly string _tokenizerUrl = tokenizerUrl;
-    private readonly ILogger _logger = logger ?? NullLogger.Instance;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
-
-    private InferenceSession? _session;
-    private Tokenizer? _tokenizer;
-    private bool _sessionWantsTokenTypes;
     private volatile bool _failed;
-    private volatile bool _ready;
+    private volatile bool _hasFiles;
 
-    /// <summary>Creates the embedder from server options.</summary>
-    public OnnxEmbedder(StorageOptions options, ILogger<OnnxEmbedder>? logger = null)
+    /// <summary>Creates the embedder over the given files, releasing the model after <paramref name="idlePeriod"/> without use.</summary>
+    /// <param name="modelPath">Where the ONNX model lives, or is downloaded to.</param>
+    /// <param name="tokenizerPath">Where the SentencePiece tokenizer lives, or is downloaded to.</param>
+    /// <param name="modelUrl">Where the model is downloaded from when it is missing.</param>
+    /// <param name="tokenizerUrl">Where the tokenizer is downloaded from when it is missing.</param>
+    /// <param name="dimensions">The length of the vectors the model answers.</param>
+    /// <param name="idlePeriod">How long the model may go unused before it is released; zero keeps it loaded for good.</param>
+    /// <param name="time">The clock the idle period is measured by.</param>
+    /// <param name="logger">Where the one failure, the loads and the releases are told; nowhere when omitted.</param>
+    public OnnxEmbedder(string modelPath, string tokenizerPath, string modelUrl, string tokenizerUrl,
+        int dimensions, TimeSpan idlePeriod, TimeProvider time, ILogger? logger = null)
+    {
+        _modelPath = modelPath;
+        _tokenizerPath = tokenizerPath;
+        _modelUrl = modelUrl;
+        _tokenizerUrl = tokenizerUrl;
+        _logger = logger ?? NullLogger.Instance;
+        _model = new OnDemandModel<OnnxModel>(LoadAsync, idlePeriod, time, _logger);
+        Dimensions = dimensions;
+    }
+
+    /// <summary>Creates the embedder from server options, releasing the model after their idle period on the system clock.</summary>
+    public OnnxEmbedder(StorageOptions options, ILogger<OnnxEmbedder>? logger = null, TimeProvider? time = null)
         : this(options.ResolveEmbeddingModelPath(), options.ResolveEmbeddingTokenizerPath(),
             options.ResolveEmbeddingModelUrl(), options.ResolveEmbeddingTokenizerUrl(),
-            options.ResolveEmbeddingDimensions(), logger)
+            options.ResolveEmbeddingDimensions(), options.ResolveEmbeddingIdlePeriod(), time ?? TimeProvider.System, logger)
     {
     }
 
     /// <inheritdoc />
-    public int Dimensions { get; } = dimensions;
+    public int Dimensions { get; }
+
+    /// <summary>Whether the model is in memory now.</summary>
+    public bool IsLoaded => _model.IsLoaded;
+
+    /// <summary>When the last embedding ended; <c>null</c> before the first one.</summary>
+    public DateTimeOffset? LastUsed => _model.LastUsed;
 
     /// <inheritdoc />
     public async ValueTask<ReadOnlyMemory<float>?> TryEmbedAsync(string text, EmbeddingPurpose purpose, CancellationToken cancellationToken = default)
@@ -64,14 +75,14 @@ public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string 
         if (_failed)
             return null;
 
-        if (!await TryEnsureReadyAsync(cancellationToken))
+        if (!await TryEnsureFilesAsync(cancellationToken))
             return null;
 
         try
         {
             var prefixed = (purpose == EmbeddingPurpose.Query ? QueryPrefix : PassagePrefix) + text;
 
-            return await Task.Run(() => Embed(prefixed), cancellationToken);
+            return await _model.UseAsync(model => Task.Run(() => model.Embed(prefixed), cancellationToken), cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -88,20 +99,20 @@ public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string 
     /// <inheritdoc />
     public void Dispose()
     {
-        _session?.Dispose();
-        _initLock.Dispose();
+        _model.Dispose();
+        _downloadLock.Dispose();
     }
 
-    private async Task<bool> TryEnsureReadyAsync(CancellationToken cancellationToken)
+    private async Task<bool> TryEnsureFilesAsync(CancellationToken cancellationToken)
     {
-        if (_ready)
+        if (_hasFiles)
             return true;
 
-        await _initLock.WaitAsync(cancellationToken);
+        await _downloadLock.WaitAsync(cancellationToken);
 
         try
         {
-            if (_ready)
+            if (_hasFiles)
                 return true;
 
             if (_failed)
@@ -110,14 +121,7 @@ public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string 
             await ModelDownloader.EnsureAsync(_tokenizerUrl, _tokenizerPath, _logger, cancellationToken);
             await ModelDownloader.EnsureAsync(_modelUrl, _modelPath, _logger, cancellationToken);
 
-            await using (var tokenizerStream = File.OpenRead(_tokenizerPath))
-                _tokenizer = SentencePieceTokenizer.Create(tokenizerStream,
-                    addBeginningOfSentence: false, addEndOfSentence: false);
-
-            _session = new InferenceSession(_modelPath);
-            _sessionWantsTokenTypes = _session.InputMetadata.ContainsKey("token_type_ids");
-
-            _ready = true;
+            _hasFiles = true;
 
             return true;
         }
@@ -133,76 +137,22 @@ public sealed class OnnxEmbedder(string modelPath, string tokenizerPath, string 
         }
         finally
         {
-            _initLock.Release();
+            _downloadLock.Release();
         }
     }
 
-    private float[] Embed(string text)
+    private Task<OnnxModel> LoadAsync()
     {
-        var ids = TokenIds(text);
-        var length = ids.Length;
-
-        var ones = new long[length];
-        Array.Fill(ones, 1L);
-
-        var inputIds = new DenseTensor<long>(ids, [1, length]);
-        var attentionMask = new DenseTensor<long>(ones, [1, length]);
-
-        var inputs = new List<NamedOnnxValue>
+        try
         {
-            NamedOnnxValue.CreateFromTensor("input_ids", inputIds),
-            NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask)
-        };
+            return Task.FromResult(OnnxModel.Load(_modelPath, _tokenizerPath, Dimensions));
+        }
+        catch (Exception exception)
+        {
+            Fail(exception, "Embedding model could not be initialized; recall falls back to text matching.");
 
-        if (_sessionWantsTokenTypes)
-            inputs.Add(NamedOnnxValue.CreateFromTensor("token_type_ids", new DenseTensor<long>(new long[length], [1, length])));
-
-        using var results = _session!.Run(inputs);
-        var hidden = results[0].AsTensor<float>();
-
-        return Normalize(MeanPool(hidden, length));
-    }
-
-    /// <summary>SentencePiece ids shifted into the fairseq vocabulary, wrapped in BOS/EOS.</summary>
-    private long[] TokenIds(string text)
-    {
-        var pieces = _tokenizer!.EncodeToIds(text);
-        var count = Math.Min(pieces.Count, MaxPieceCount);
-
-        var ids = new long[count + 2];
-        ids[0] = BosId;
-
-        for (var index = 0; index < count; index++)
-            ids[index + 1] = pieces[index] == 0 ? UnknownId : pieces[index] + FairseqOffset;
-
-        ids[count + 1] = EosId;
-
-        return ids;
-    }
-
-    private float[] MeanPool(Tensor<float> hidden, int length)
-    {
-        var pooled = new float[Dimensions];
-
-        for (var token = 0; token < length; token++)
-            for (var component = 0; component < Dimensions; component++)
-                pooled[component] += hidden[0, token, component];
-
-        for (var component = 0; component < Dimensions; component++)
-            pooled[component] /= length;
-
-        return pooled;
-    }
-
-    private static float[] Normalize(float[] vector)
-    {
-        var norm = MathF.Sqrt(vector.Sum(component => component * component));
-
-        if (norm > 0)
-            for (var component = 0; component < vector.Length; component++)
-                vector[component] /= norm;
-
-        return vector;
+            throw;
+        }
     }
 
     private void Fail(Exception exception, string message)
