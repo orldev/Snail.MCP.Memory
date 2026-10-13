@@ -1,6 +1,6 @@
 # Snail.MCP.Memory
 
-> 📖 **Docs & site:** [orldev.github.io/Snail.MCP.Memory](https://orldev.github.io/Snail.MCP.Memory) (source in [docs/](docs/) — enable GitHub Pages: *Settings → Pages → Deploy from a branch → `main` / `docs`*)
+> 📖 **Docs & site:** [orldev.github.io/Snail.MCP.Memory](https://orldev.github.io/Snail.MCP.Memory) — this README and the tool reference in [docs/](docs/), built by `docs.yml`
 
 Long-term memory for your AI agent. Connect this MCP server to Claude Code, Claude Desktop, VS Code or any other MCP client — and the agent starts remembering your decisions, lessons and preferences between sessions, across projects, in your language.
 

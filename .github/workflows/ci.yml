@@ -15,7 +15,5 @@ jobs:
   ci:
     uses: orldev/Snail.Sdk/.github/workflows/mcp-ci.yml@v1
     with:
-      name: Snail.MCP.Memory
-      native: false
       contract-variable: SNAIL_MEMORY_SERVER
       contract-filter: FullyQualifiedName~StdioContract|FullyQualifiedName~HttpContract
