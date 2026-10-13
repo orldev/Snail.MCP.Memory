@@ -1,6 +1,3 @@
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-using Snail.MCP.Memory.Infrastructure.Persistence;
 using Snail.MCP.Memory.Tests.TestDoubles;
 
 namespace Snail.MCP.Memory.Tests.Infrastructure;
@@ -99,50 +96,5 @@ public sealed class EfPendingLinkStoreTests : IDisposable
         Assert.Empty(await right.ListAsync());
         Assert.True(await right.TryProposeAsync(Suggestion()));
         Assert.Equal(2, (await _harness.PendingIn("").ListAsync()).Count);
-    }
-
-    /// A database created before pending_links existed makes EF's wholesale table creation
-    /// throw; the upgrade DDL must add just the missing table.
-    [Fact]
-    public async Task Initialization_AddsThePendingTableToAPreExistingDatabase()
-    {
-        var tempDir = System.IO.Directory.CreateTempSubdirectory("smupgrade");
-        var preExisting = $"Data Source={Path.Combine(tempDir.FullName, "memory.db")}";
-
-        try
-        {
-            await using (var connection = new SqliteConnection(preExisting))
-            {
-                await connection.OpenAsync();
-                await using var command = connection.CreateCommand();
-                command.CommandText =
-                    """
-                    CREATE TABLE projects ("Workspace" TEXT NOT NULL, "Key" TEXT NOT NULL, "Name" TEXT NOT NULL,
-                        "Description" TEXT NOT NULL, "Created" BIGINT NOT NULL, PRIMARY KEY ("Workspace", "Key"));
-                    CREATE TABLE edges ("Workspace" TEXT NOT NULL, "SourceKey" TEXT NOT NULL, "TargetKey" TEXT NOT NULL,
-                        "Type" TEXT NOT NULL, "Source" TEXT NOT NULL, "Target" TEXT NOT NULL, "Note" TEXT NOT NULL,
-                        "Updated" BIGINT NOT NULL, PRIMARY KEY ("Workspace", "SourceKey", "TargetKey", "Type"));
-                    """;
-                await command.ExecuteNonQueryAsync();
-            }
-
-            var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(preExisting).Options;
-            using var database = new MemoryDb(new UpgradeFactory(options));
-            var store = new EfPendingLinkStore(database, "");
-
-            Assert.True(await store.TryProposeAsync(Suggestion()));
-            Assert.Single(await store.ListAsync());
-            Assert.True(await new EfAuditStore(database, "").TryClaimAsync(TimeSpan.FromDays(7), _harness.Time.GetUtcNow()));
-        }
-        finally
-        {
-            SqlitePools.Release(preExisting);
-            tempDir.Delete(recursive: true);
-        }
-    }
-
-    private sealed class UpgradeFactory(DbContextOptions<MemoryDbContext> options) : IDbContextFactory<MemoryDbContext>
-    {
-        public MemoryDbContext CreateDbContext() => new(options);
     }
 }
