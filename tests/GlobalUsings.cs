@@ -9,3 +9,4 @@ global using Snail.MCP.Memory.Core.Records;
 global using Snail.MCP.Memory.Core.Utilities;
 global using Snail.MCP.Memory.Application;
 global using Snail.MCP.Memory.Infrastructure.Stores;
+global using Snail.Sdk.Mcp.Testing;

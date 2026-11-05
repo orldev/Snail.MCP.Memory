@@ -32,6 +32,7 @@
         <PackageReference Include="Microsoft.ML.OnnxRuntime" />
         <PackageReference Include="Microsoft.ML.Tokenizers" />
         <PackageReference Include="ModelContextProtocol" />
+        <PackageReference Include="ModelContextProtocol.AspNetCore" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     </ItemGroup>
 

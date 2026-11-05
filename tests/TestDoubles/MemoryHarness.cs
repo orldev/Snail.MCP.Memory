@@ -12,7 +12,7 @@ namespace Snail.MCP.Memory.Tests.TestDoubles;
 /// </summary>
 public sealed class MemoryHarness : IDisposable
 {
-    private readonly string _tempDir = Path.Combine(Path.GetTempPath(), $"smharness-{Guid.NewGuid()}");
+    private readonly string _tempDir = TestFolder.Create();
     private readonly string _connection;
     private readonly int _dimensions;
 
@@ -20,7 +20,6 @@ public sealed class MemoryHarness : IDisposable
     {
         _dimensions = dimensions;
         _connection = $"Data Source={Path.Combine(_tempDir, "memory.db")}";
-        Directory.CreateDirectory(_tempDir);
 
         var options = new DbContextOptionsBuilder<MemoryDbContext>().UseSqlite(_connection).Options;
         Database = new MemoryDb(new Factory(options));

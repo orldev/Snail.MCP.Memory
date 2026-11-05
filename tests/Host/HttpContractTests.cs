@@ -5,7 +5,6 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
-using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -20,7 +19,7 @@ public sealed class HttpContractTests : IAsyncLifetime
 
     private static readonly string ConfigVariable = ServerSettings.FileVariableOf(StorageOptions.ServerName);
 
-    private readonly string _dataDirectory = Directory.CreateTempSubdirectory("snail-http-").FullName;
+    private readonly string _dataDirectory = TestFolder.Create();
     private readonly Uri _endpoint = new($"http://127.0.0.1:{FreePort()}/mcp");
     private Process _server = null!;
 

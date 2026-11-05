@@ -197,7 +197,7 @@ public sealed class StorageOptionsTests
 
     private static string WriteSettings(string json)
     {
-        var file = Path.Combine(Path.GetTempPath(), $"smsettings-{Guid.NewGuid()}.json");
+        var file = Path.Combine(TestFolder.Create(), "settings.json");
 
         File.WriteAllText(file, json);
 
