@@ -5,7 +5,6 @@ using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Tools;
 using Snail.Sdk.Mcp.Hosting;
-using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -115,7 +114,7 @@ public class StdioContractTests
     [Fact]
     public async Task Tools_AsListed_KeepTheGuardRules()
     {
-        var dataDirectory = Directory.CreateTempSubdirectory("snail-guards-").FullName;
+        var dataDirectory = TestFolder.Create();
 
         try
         {
@@ -160,7 +159,7 @@ public class StdioContractTests
 
         public static async Task<ServerSession> StartAsync()
         {
-            var dataDirectory = Path.Combine(Path.GetTempPath(), $"snail-stdio-{Guid.NewGuid().ToString("N")[..8]}");
+            var dataDirectory = Path.Combine(TestFolder.Create(), "data");
             var (command, arguments) = ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
             var start = new ProcessStartInfo
             {

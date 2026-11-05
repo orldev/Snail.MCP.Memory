@@ -13,7 +13,7 @@ public sealed class MemoryDbTests : IDisposable
 {
     private static readonly string[] MemoryTables = ["audit_state", "edges", "pending_links", "projects"];
 
-    private readonly DirectoryInfo _tempDir = System.IO.Directory.CreateTempSubdirectory("smschema");
+    private readonly DirectoryInfo _tempDir = new DirectoryInfo(TestFolder.Create());
     private readonly List<string> _connections = [];
     private readonly List<string> _errors = [];
 

@@ -10,7 +10,7 @@ namespace Snail.MCP.Memory.Tests.Host;
 /// the defaults and the switches are each pinned here.
 public sealed class StorageRegistrationTests : IDisposable
 {
-    private readonly string _tempDir = Path.Combine(Path.GetTempPath(), $"smdi-{Guid.NewGuid()}");
+    private readonly string _tempDir = Path.Combine(TestFolder.Create(), "data");
 
     public void Dispose()
     {

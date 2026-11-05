@@ -14,7 +14,7 @@ public sealed class OnnxEmbedderTests
     [Fact]
     public async Task TryEmbed_AnswersNullWhenTheModelCannotBeObtained()
     {
-        var missing = Path.Combine(Path.GetTempPath(), $"smonnx-{Guid.NewGuid()}");
+        var missing = Path.Combine(TestFolder.Create(), "model");
         using var embedder = new OnnxEmbedder(
             Path.Combine(missing, "model.onnx"), Path.Combine(missing, "tokenizer.model"),
             UnreachableUrl, UnreachableUrl, StorageOptions.DefaultEmbeddingDimensions, TimeSpan.Zero, TimeProvider.System);
