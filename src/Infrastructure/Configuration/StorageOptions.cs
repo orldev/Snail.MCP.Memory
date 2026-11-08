@@ -32,13 +32,13 @@ public sealed class StorageOptions
     /// <summary>Where the HTTP server listens unless <c>Url</c> (<c>SNAIL_MCP_MEMORY_URL</c>) or <c>Port</c> says otherwise.</summary>
     public static readonly Uri DefaultUrl = new("http://127.0.0.1:9230");
 
-    /// <summary>How the endpoint is read: held to loopback wherever the server runs.</summary>
+    /// <summary>How the endpoint is read: held to loopback wherever the server runs, its refusals naming the variables by <see cref="ServerName"/>.</summary>
     /// <remarks>
     /// The endpoint has no key and the memory holds everything a user ever told an agent, so no setting may serve it to
     /// the network: <c>ListensOnEveryInterface</c>, a URL at <c>0.0.0.0</c> or beyond loopback, and a start inside a
     /// container are refused at the start, naming the variable, where they used to open every interface.
     /// </remarks>
-    public static readonly McpEndpointOptions EndpointOptions = new() { Reach = McpReach.LoopbackOnly };
+    public static readonly McpEndpointOptions EndpointOptions = new() { Reach = McpReach.LoopbackOnly, Server = ServerName };
 
     /// <summary>Database file name inside the data directory.</summary>
     public const string DefaultDatabaseFileName = "memory.db";
@@ -124,7 +124,20 @@ public sealed class StorageOptions
     public int? AuditIntervalDays { get; set; }
 
     /// <summary>Binds the options from the server's settings as <see cref="ServerSettings.Read(string)"/> read them: the settings file, then the variables, which win.</summary>
-    public static StorageOptions From(IConfiguration settings) => settings.Get<StorageOptions>() ?? new StorageOptions();
+    /// <remarks>
+    /// Bound before any host exists, so a value its property's type cannot hold — <c>SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES=abc</c>
+    /// — is refused through <see cref="ServerSettings.Bind(string, IConfiguration, Action{IConfiguration})"/> as a
+    /// <see cref="StartRefusedException"/> naming the variable, where the binder's bare exception crashed the program with a trace.
+    /// </remarks>
+    /// <exception cref="StartRefusedException">A setting holds a value its property's type cannot hold.</exception>
+    public static StorageOptions From(IConfiguration settings)
+    {
+        StorageOptions? bound = null;
+
+        ServerSettings.Bind(ServerName, settings, read => bound = read.Get<StorageOptions>());
+
+        return bound ?? new StorageOptions();
+    }
 
     /// <summary>Reads options from <paramref name="file"/>, when there is one, and the server's variables among <paramref name="variables"/>.</summary>
     internal static StorageOptions Load(string? file, IDictionary variables) =>

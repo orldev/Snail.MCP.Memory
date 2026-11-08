@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using Snail.MCP.Memory.Tests.TestDoubles;
 
 namespace Snail.MCP.Memory.Tests.Application;
@@ -39,13 +38,13 @@ public sealed class RecordLifecycleTests : IDisposable
     {
         var first = await _service.RememberAsync("ProjectA", "the very same knowledge");
 
-        var answer = await _service.RememberAsync(
-            "ProjectA", "the very same knowledge", duplicateOf: scored => JsonValue.Create(scored.Record.Id.ToString()));
+        var answer = await _service.RememberAsync("ProjectA", "the very same knowledge");
 
         Assert.Equal(Refusals.Duplicate, answer.Type);
         Assert.StartsWith("Not stored", answer.Error, StringComparison.Ordinal);
         Assert.Contains("replaceId", answer.Hint, StringComparison.Ordinal);
-        Assert.Equal(first.Value!.Record.Id.ToString(), answer.Details!.GetValue<string>());
+        Assert.True(answer.TryGetDetails<ScoredRecord>(out var duplicate));
+        Assert.Equal(first.Value!.Record.Id, duplicate.Record.Id);
         Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
     }
 

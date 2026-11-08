@@ -58,8 +58,9 @@ public static class ProjectMemoryTools
         [Description("Id of the record this one supersedes; the old record is deleted. Optional.")] string replaceId = "",
         [Description("Store even when a very similar record exists.")] bool force = false,
         [Description(ToolDescriptions.LinksParam)] RecordLink[]? links = null) =>
-        ToolAnswer.From(
-            await service.RememberAsync(projectName, content, kind, title, replaceId, force, links, AnswerFields.Of, cancellationToken),
+        ToolAnswer.From<Remembered, ScoredRecord>(
+            await service.RememberAsync(projectName, content, kind, title, replaceId, force, links, cancellationToken),
+            AnswerFields.Of,
             AnswerFields.Of);
 
     /// <summary>Searches memory by meaning; empty query answers an overview.</summary>
