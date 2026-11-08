@@ -6,7 +6,7 @@ using Snail.Sdk.Mcp.Hosting;
 
 var settings = ServerSettings.Read(StorageOptions.ServerName);
 var options = StorageOptions.From(settings);
-var endpoint = McpEndpoint.Read(settings, StorageOptions.DefaultUrl);
+var endpoint = McpEndpoint.Read(settings, StorageOptions.DefaultUrl, StorageOptions.EndpointOptions);
 
 if (endpoint.Transport is McpTransport.Http)
 {
