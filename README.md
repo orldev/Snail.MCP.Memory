@@ -159,7 +159,7 @@ those travel wherever they are copied.
 | `DUPLICATE_THRESHOLD` | `0.95` | Similarity above which `remember` refuses a near-duplicate and offers to supersede the old record instead |
 | `SIMILARITY_FLOOR` | `0.75` | Similarity below which a search hit is dropped. Raise to ~`0.8` if recall feels noisy, lower if it misses things |
 | `TRANSPORT` | `Stdio` | `Http` runs one server for every session of the machine — see [One server for every session](#one-server-for-every-session) |
-| `URL` | `http://127.0.0.1:9230` | Where the HTTP server listens. Loopback unless the address is `0.0.0.0`, `LISTENS_ON_EVERY_INTERFACE` is `true` or the server runs in a container — the endpoint has no key, so keep it on loopback |
+| `URL` | `http://127.0.0.1:9230` | Where the HTTP server listens, on loopback only: the endpoint has no key, so an address beyond loopback (`0.0.0.0` among them), `LISTENS_ON_EVERY_INTERFACE=true` or a start inside a container is refused at the start, naming the variable |
 | `PORT` | — | A port alone also means HTTP: the server listens on that port of `URL`'s host |
 | `IDLE_TIMEOUT_MINUTES` | `60` | Minutes without any MCP message before an orphaned stdio server process shuts itself down; `0` is the default hour, it cannot be turned off. A server over HTTP is never stopped |
 | `AUDIT_INTERVAL_DAYS` | `7` | Days between [background audit](#pending-link-suggestions) runs; `0` disables the audit |
@@ -223,8 +223,8 @@ claude mcp add -s user --transport http mem0 http://127.0.0.1:9230/mcp
 
 Settings other than the transport go into `~/.config/s3l-mcp-memory/config.json`. `init_project_memory` without a
 name asks the client for the folder it works in (MCP roots), since the server's own folder is nobody's project. The
-endpoint has no key: it listens on loopback — unless `URL` names `0.0.0.0`, `LISTENS_ON_EVERY_INTERFACE` is `true` or it
-runs in a container, which open the port on every interface, so don't — and refuses any request that carries an
+endpoint has no key: it listens on loopback and nowhere else — a `URL` beyond loopback, `LISTENS_ON_EVERY_INTERFACE=true`
+or a start inside a container is refused at the start, naming the variable — and refuses any request that carries an
 `Origin`, which every browser page sends and no agent client does.
 
 ## Sharing one database

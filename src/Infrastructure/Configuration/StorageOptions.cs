@@ -21,7 +21,8 @@ public enum Provider
 /// <summary>Server configuration: flat keys from the settings file or <c>SNAIL_MCP_MEMORY_*</c> variables, bound by <see cref="From"/>.</summary>
 /// <remarks>
 /// Where clients reach the server — <c>Transport</c>, <c>Url</c>, <c>Port</c> — is not here: the same settings are read for it by
-/// <see cref="McpEndpoint.Read(IConfiguration, Uri)"/>, with <see cref="DefaultUrl"/> as the address.
+/// <see cref="McpEndpoint.Read(IConfiguration, Uri, McpEndpointOptions)"/>, with <see cref="DefaultUrl"/> as the address and
+/// <see cref="EndpointOptions"/> holding it to loopback.
 /// </remarks>
 public sealed class StorageOptions
 {
@@ -30,6 +31,14 @@ public sealed class StorageOptions
 
     /// <summary>Where the HTTP server listens unless <c>Url</c> (<c>SNAIL_MCP_MEMORY_URL</c>) or <c>Port</c> says otherwise.</summary>
     public static readonly Uri DefaultUrl = new("http://127.0.0.1:9230");
+
+    /// <summary>How the endpoint is read: held to loopback wherever the server runs.</summary>
+    /// <remarks>
+    /// The endpoint has no key and the memory holds everything a user ever told an agent, so no setting may serve it to
+    /// the network: <c>ListensOnEveryInterface</c>, a URL at <c>0.0.0.0</c> or beyond loopback, and a start inside a
+    /// container are refused at the start, naming the variable, where they used to open every interface.
+    /// </remarks>
+    public static readonly McpEndpointOptions EndpointOptions = new() { Reach = McpReach.LoopbackOnly };
 
     /// <summary>Database file name inside the data directory.</summary>
     public const string DefaultDatabaseFileName = "memory.db";
