@@ -1,13 +1,16 @@
 using BenchmarkDotNet.Attributes;
-using Snail.MCP.Memory.Core.Formatting;
+using ModelContextProtocol.Protocol;
+using Snail.MCP.Memory.Core.Answers;
 using Snail.MCP.Memory.Core.Graph;
 using Snail.MCP.Memory.Core.Records;
+using Snail.MCP.Memory.Tools;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Memory.Benchmarks;
 
-/// <summary>The answers a recall, an overview and a graph call build: the Markdown every read tool returns.</summary>
+/// <summary>The answers a recall, an overview and a graph call build: the fields of <see cref="AnswerFields"/> written as the envelope.</summary>
 [MemoryDiagnoser]
-public class FormatterBenchmarks
+public class AnswerBenchmarks
 {
     private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -27,13 +30,15 @@ public class FormatterBenchmarks
     }
 
     [Benchmark]
-    public string Recall() => MemoryFormatter.RenderRecall("how is the store configured", "project 'Snail.MCP.Memory'", "any", _scored, usedTextFallback: false);
+    public CallToolResult Recall() =>
+        ToolAnswer.Ok(AnswerFields.Of(new Recall("Snail.MCP.Memory", "how is the store configured", "", RecallSearch.Meaning, _scored, [])));
 
     [Benchmark]
-    public string Overview() => MemoryFormatter.RenderOverview("Snail.MCP.Memory", "any", _records);
+    public CallToolResult Overview() =>
+        ToolAnswer.Ok(AnswerFields.Of(new Recall("Snail.MCP.Memory", "", "", RecallSearch.Overview, [.. _records.Select(record => new ScoredRecord(record, null))], [])));
 
     [Benchmark]
-    public string Graph() => MemoryFormatter.RenderGraph("## Knowledge graph", _edges);
+    public CallToolResult Graph() => ToolAnswer.Ok(AnswerFields.Of(new GraphView([], 0, _edges)));
 
     private static MemoryRecord Record(int index) => new()
     {

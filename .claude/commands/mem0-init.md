@@ -13,4 +13,4 @@ Use MCP tools exclusively — no bash, no reading files. Answer in the language 
 
 "Done. Memory initialized."
 
-— followed by the briefing block from the server response verbatim, if one was returned. If the server returned an error, print its text verbatim instead.
+— followed by the briefing from the server's JSON answer, if it holds one: the projects of `data.briefing.similarProjects` with their similarity, then each record of `data.briefing.experience` as `[kind] title — project` with its content, then `data.briefing.notes`, then each pair of `data.pending`. Add nothing of your own. If the answer has `"ok":false`, print its `error` verbatim instead.

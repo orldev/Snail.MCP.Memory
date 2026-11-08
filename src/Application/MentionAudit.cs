@@ -1,5 +1,3 @@
-using Snail.MCP.Memory.Core.Formatting;
-
 namespace Snail.MCP.Memory.Application;
 
 /// <summary>The background audit: refills the pending queue from records the write-time scan could not cover.</summary>
@@ -45,7 +43,7 @@ public sealed class MentionAudit(
                     continue;
 
                 if (await pending.TryProposeAsync(
-                        new PendingLink(project.Name, other.Name, MemoryFormatter.Label(mention), now), cancellationToken))
+                        new PendingLink(project.Name, other.Name, mention.Label, now), cancellationToken))
                     queued++;
             }
         }

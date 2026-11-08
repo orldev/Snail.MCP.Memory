@@ -1,9 +1,9 @@
 using Snail.MCP.Memory.Core.Constants;
-using Snail.MCP.Memory.Core.Formatting;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Memory.Application;
 
-/// <summary>The directed knowledge graph: linking, unlinking, rendering, and the pending suggestion queue.</summary>
+/// <summary>The directed knowledge graph: linking, unlinking, reading, and the pending suggestion queue.</summary>
 /// <remarks>Both ends of a link must be registered projects — an edge to a name without memory is a phantom.</remarks>
 public sealed class KnowledgeGraph(
     IGraphStore graph, IProjectStore projects, IPendingLinkStore pending, TimeProvider timeProvider)
@@ -12,21 +12,14 @@ public sealed class KnowledgeGraph(
     internal const int MaxDepth = 5;
 
     /// <summary>Creates or updates one directed edge; a confirmed edge settles the pair's pending suggestion.</summary>
-    public async Task<string> LinkAsync(
+    public async Task<Answer<Linked>> LinkAsync(
         string from, string to, string type, string note = "", CancellationToken cancellationToken = default)
     {
         var source = ProjectIdentity.Normalize(from);
         var target = ProjectIdentity.Normalize(to);
 
-        if (source.Length == 0 || target.Length == 0)
-            return Messages.BothProjectsRequired;
-
-        if (ProjectIdentity.Equal(source, target))
-            return Messages.SelfLinkForbidden;
-
-        foreach (var end in new[] { source, target })
-            if (await projects.GetAsync(ProjectIdentity.Key(end), cancellationToken) is null)
-                return Messages.ProjectNotFound(end);
+        if (await RefusedPairAsync(source, target, cancellationToken) is { } refused)
+            return refused;
 
         var created = await graph.TryInsertAsync(
             new GraphEdge(source, target, type, note.Trim(), timeProvider.GetUtcNow()), cancellationToken);
@@ -34,32 +27,21 @@ public sealed class KnowledgeGraph(
         var resolved = await pending.ResolveAsync(
             ProjectIdentity.Key(source), ProjectIdentity.Key(target), cancellationToken);
 
-        var message = created
-            ? Messages.LinkCreated(source, type, target)
-            : Messages.LinkUpdated(source, type, target);
-
-        return resolved > 0 ? message + Messages.PendingResolved(resolved) : message;
+        return Answer.Ok(new Linked(source, type, target, created, resolved));
     }
 
     /// <summary>Rejects a suggested pair so it is never proposed again.</summary>
-    public async Task<string> DismissAsync(string from, string to, CancellationToken cancellationToken = default)
+    public async Task<Answer<Dismissed>> DismissAsync(string from, string to, CancellationToken cancellationToken = default)
     {
         var source = ProjectIdentity.Normalize(from);
         var target = ProjectIdentity.Normalize(to);
 
-        if (source.Length == 0 || target.Length == 0)
-            return Messages.BothProjectsRequired;
-
-        if (ProjectIdentity.Equal(source, target))
-            return Messages.SelfLinkForbidden;
-
-        foreach (var end in new[] { source, target })
-            if (await projects.GetAsync(ProjectIdentity.Key(end), cancellationToken) is null)
-                return Messages.ProjectNotFound(end);
+        if (await RefusedPairAsync(source, target, cancellationToken) is { } refused)
+            return refused;
 
         await pending.DismissAsync(source, target, timeProvider.GetUtcNow(), cancellationToken);
 
-        return Messages.LinkDismissed(source, target);
+        return Answer.Ok(new Dismissed(source, target));
     }
 
     /// <summary>
@@ -108,18 +90,18 @@ public sealed class KnowledgeGraph(
     /// an auto edge missing from its source is only marked stale, a target without memory is
     /// skipped and reported. Idempotent — the same payload twice changes nothing.
     /// </summary>
-    public async Task<string> SyncAsync(
+    public async Task<Answer<Synced>> SyncAsync(
         string projectName, IReadOnlyList<RecordLink> links, string source, CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
         if (project.Length == 0)
-            return Messages.ProjectNameEmpty;
+            return Answer.Failed(Messages.ProjectNameEmpty, Messages.ProjectNameEmptyHint, Refusals.EmptyName);
 
         var projectKey = ProjectIdentity.Key(project);
 
         if (await projects.GetAsync(projectKey, cancellationToken) is null)
-            return Messages.ProjectNotFound(project);
+            return Answer.Failed(Messages.ProjectNotFound(project), Messages.ProjectNotFoundHint, Refusals.NotFound);
 
         var sourceTag = source.Trim() is { Length: > 0 } tag ? tag : "sync";
         var autoNote = Messages.AutoNote(sourceTag);
@@ -130,7 +112,7 @@ public sealed class KnowledgeGraph(
             .ToDictionary(edge => (ProjectIdentity.Key(edge.Target), edge.Type));
 
         var desired = new HashSet<(string, string)>();
-        var notes = new List<string>();
+        var skipped = new List<string>();
         int created = 0, refreshed = 0, kept = 0;
 
         foreach (var link in links)
@@ -143,7 +125,7 @@ public sealed class KnowledgeGraph(
 
             if (await projects.GetAsync(targetKey, cancellationToken) is not { } registered)
             {
-                notes.Add(Messages.SyncSkipped(target));
+                skipped.Add(target);
                 continue;
             }
 
@@ -179,44 +161,37 @@ public sealed class KnowledgeGraph(
                 continue;
 
             await graph.TryInsertAsync(
-                edge with { Note = edge.Note + Messages.StaleSuffix(now.ToString(MemoryFormatter.DateFormat)), Updated = now },
+                edge with { Note = edge.Note + Messages.StaleSuffix(Day.Of(now)), Updated = now },
                 cancellationToken);
             stale++;
         }
 
-        var summary = Messages.SyncSummary(sourceTag, project, created, refreshed, kept, stale);
-
-        return notes.Count == 0 ? summary : $"{summary}\n{string.Join('\n', notes)}";
+        return Answer.Ok(new Synced(project, sourceTag, created, refreshed, kept, stale, skipped));
     }
 
     /// <summary>Removes edges between two projects regardless of direction; empty type — every type.</summary>
-    public async Task<string> UnlinkAsync(
+    public async Task<Answer<Unlinked>> UnlinkAsync(
         string from, string to, string type = "", CancellationToken cancellationToken = default)
     {
         var source = ProjectIdentity.Normalize(from);
         var target = ProjectIdentity.Normalize(to);
 
         if (source.Length == 0 || target.Length == 0)
-            return Messages.BothProjectsRequired;
+            return Answer.Failed(Messages.BothProjectsRequired, Messages.BothProjectsRequiredHint, Refusals.EmptyName);
 
         var normalizedType = "";
 
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            if (!LinkTypes.TryNormalize(type, out normalizedType))
-                return Messages.UnknownLinkType(type, LinkTypes.AllowedList());
-        }
+        if (!string.IsNullOrWhiteSpace(type) && !LinkTypes.TryNormalize(type, out normalizedType))
+            return Answer.Failed(Messages.UnknownLinkType(type), Messages.UnknownLinkTypeHint(LinkTypes.AllowedList()), Refusals.UnknownLinkType);
 
         var removed = await graph.RemoveAsync(
             ProjectIdentity.Key(source), ProjectIdentity.Key(target), normalizedType, cancellationToken);
 
-        return removed == 0
-            ? Messages.NoLinksBetween(source, target)
-            : Messages.LinksRemoved(removed, source, target);
+        return Answer.Ok(new Unlinked(source, target, normalizedType, removed));
     }
 
-    /// <summary>Renders the edges around the selected projects (joined by <c>+</c>), expanding <paramref name="depth"/> hops; empty selection — the whole graph.</summary>
-    public async Task<string> RenderAsync(
+    /// <summary>The edges around the selected projects (joined by <c>+</c>), expanding <paramref name="depth"/> hops; empty selection — the whole graph.</summary>
+    public async Task<GraphView> ReadAsync(
         string projectName = "", int depth = 1, CancellationToken cancellationToken = default)
     {
         var roots = projectName
@@ -225,7 +200,7 @@ public sealed class KnowledgeGraph(
             .ToList();
 
         if (roots.Count == 0)
-            return MemoryFormatter.RenderGraph(Messages.WholeGraphTitle, await graph.GetAllAsync(cancellationToken));
+            return new GraphView([], 0, Ordered(await graph.GetAllAsync(cancellationToken)));
 
         var boundedDepth = Math.Clamp(depth, 1, MaxDepth);
         var visited = new HashSet<string>(roots.Select(ProjectIdentity.Key));
@@ -251,7 +226,27 @@ public sealed class KnowledgeGraph(
             }
         }
 
-        return MemoryFormatter.RenderGraph(
-            Messages.GraphTitle(string.Join(" + ", roots), boundedDepth), [.. edges.Values]);
+        return new GraphView(roots, boundedDepth, Ordered([.. edges.Values]));
     }
+
+    /// <summary>Why a pair cannot be linked or dismissed: an empty end, a project paired with itself, an end without memory; null when it can.</summary>
+    private async Task<AnswerFailure?> RefusedPairAsync(string source, string target, CancellationToken cancellationToken)
+    {
+        if (source.Length == 0 || target.Length == 0)
+            return Answer.Failed(Messages.BothProjectsRequired, Messages.BothProjectsRequiredHint, Refusals.EmptyName);
+
+        if (ProjectIdentity.Equal(source, target))
+            return Answer.Failed(Messages.SelfLinkForbidden, Messages.SelfLinkForbiddenHint, Refusals.SelfLink);
+
+        foreach (var end in new[] { source, target })
+        {
+            if (await projects.GetAsync(ProjectIdentity.Key(end), cancellationToken) is null)
+                return Answer.Failed(Messages.ProjectNotFound(end), Messages.ProjectNotFoundHint, Refusals.NotFound);
+        }
+
+        return null;
+    }
+
+    private static List<GraphEdge> Ordered(IEnumerable<GraphEdge> edges) =>
+        [.. edges.OrderBy(edge => edge.Source, ProjectIdentity.Comparer).ThenBy(edge => edge.Type, StringComparer.Ordinal)];
 }

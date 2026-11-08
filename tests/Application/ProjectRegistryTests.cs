@@ -24,14 +24,26 @@ public sealed class ProjectRegistryTests : IDisposable
     [Fact]
     public async Task Init_CreatesOnceAndReportsAnExistingProject()
     {
-        Assert.StartsWith(Messages.ProjectCreated("ProjectA"), await _service.InitAsync("ProjectA"));
-        Assert.StartsWith(Messages.ProjectAlreadyExists("ProjectA"), await _service.InitAsync("projecta"));
+        var first = await _service.InitAsync("ProjectA");
+        var second = await _service.InitAsync("projecta");
+
+        Assert.Equal(("ProjectA", true), (first.Value!.Project, first.Value.IsCreated));
+        Assert.Equal(("ProjectA", false), (second.Value!.Project, second.Value.IsCreated));
     }
 
     [Fact]
-    public async Task Init_WithoutDescriptionHintsHowToGetABriefing()
+    public async Task Init_WithoutDescriptionOrSeeds_LooksForNoBriefing()
     {
-        Assert.Contains(Messages.BriefingHint, await _service.InitAsync("ProjectA"));
+        var briefing = (await _service.InitAsync("ProjectA")).Value!.Briefing;
+
+        Assert.False(briefing.WasAsked);
+        Assert.Empty(briefing.Experience);
+    }
+
+    [Fact]
+    public async Task Init_WithAnEmptyName_IsRefused()
+    {
+        Refused.As(Refusals.EmptyName, Messages.ProjectNameEmpty, await _service.InitAsync("  "));
     }
 
     /// The briefing is the experience transfer: a description similar to another project's
@@ -41,11 +53,11 @@ public sealed class ProjectRegistryTests : IDisposable
     {
         await _memory.RememberAsync("OldProject", "experience with MCP servers", kind: "lesson");
 
-        var answer = await _service.InitAsync("NewProject", description: "experience with MCP servers");
+        var briefing = (await _service.InitAsync("NewProject", description: "experience with MCP servers")).Value!.Briefing;
 
-        Assert.Contains(Messages.BriefingTitle, answer);
-        Assert.Contains("OldProject", answer);
-        Assert.Contains("[lesson]", answer);
+        Assert.True(briefing.WasAsked);
+        Assert.Equal("OldProject", Assert.Single(briefing.SimilarProjects).Project);
+        Assert.Equal(RecordKinds.Lesson, Assert.Single(briefing.Experience).Record.Kind);
     }
 
     [Fact]
@@ -54,11 +66,10 @@ public sealed class ProjectRegistryTests : IDisposable
         await _memory.RememberAsync("Donor", "a decision about the stack", kind: "decision");
         await _memory.RememberAsync("Donor", "a fleeting event", kind: "event");
 
-        var answer = await _service.InitAsync("NewProject", seedFrom: "Donor + Ghost");
+        var briefing = (await _service.InitAsync("NewProject", seedFrom: "Donor + Ghost")).Value!.Briefing;
 
-        Assert.Contains("a decision about the stack", answer);
-        Assert.DoesNotContain("a fleeting event", answer);
-        Assert.Contains(Messages.SeedProjectMissing("Ghost"), answer);
+        Assert.Equal("a decision about the stack", Assert.Single(briefing.Experience).Record.Content);
+        Assert.Equal(["Ghost"], briefing.MissingSeeds);
     }
 
     [Fact]
@@ -67,10 +78,10 @@ public sealed class ProjectRegistryTests : IDisposable
         await _service.InitAsync("Alpha");
         await _service.InitAsync("Beta");
 
-        var answer = await _service.ListAsync("al");
+        var listing = await _service.ListAsync("al");
 
-        Assert.Contains("Alpha", answer);
-        Assert.DoesNotContain("Beta", answer);
+        Assert.Equal("al", listing.Prefix);
+        Assert.Equal("Alpha", Assert.Single(listing.Projects).Name);
     }
 
     /// Re-initializing an existing project surfaces its unresolved suggestions — the queue
@@ -84,8 +95,7 @@ public sealed class ProjectRegistryTests : IDisposable
 
         var answer = await _service.InitAsync("A");
 
-        Assert.Contains(Messages.PendingTitle, answer);
-        Assert.Contains("a record", answer);
+        Assert.Equal("a record", Assert.Single(answer.Value!.Pending).Evidence);
     }
 
     [Fact]
@@ -110,7 +120,7 @@ public sealed class ProjectRegistryTests : IDisposable
 
         var answer = await _service.RenameAsync("old", "Fresh");
 
-        Assert.Equal(Messages.ProjectRenamed("old", "Fresh", 1, 1), answer);
+        Assert.Equal(new Renamed("old", "Fresh", 1, 1), answer.Value);
         Assert.Null(await _harness.Projects.GetAsync("old"));
         Assert.Equal("Fresh", (await _harness.Projects.GetAsync("fresh"))!.Name);
         Assert.Equal("Fresh", Assert.Single(await _harness.Records.ListAsync(new RecordFilter("fresh"), 10)).Project);
@@ -123,8 +133,8 @@ public sealed class ProjectRegistryTests : IDisposable
         await _service.InitAsync("A");
         await _service.InitAsync("B");
 
-        Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.RenameAsync("Ghost", "C"));
-        Assert.Equal(Messages.RenameTargetTaken("B"), await _service.RenameAsync("A", "b"));
+        Refused.As(Refusals.NotFound, Messages.ProjectNotFound("Ghost"), await _service.RenameAsync("Ghost", "C"));
+        Refused.As(Refusals.NameTaken, Messages.RenameTargetTaken("B"), await _service.RenameAsync("A", "b"));
     }
 
     /// Changing only the letter case of a name is a legal rename, not a collision with itself.
@@ -135,7 +145,7 @@ public sealed class ProjectRegistryTests : IDisposable
 
         var answer = await _service.RenameAsync("myproject", "MyProject");
 
-        Assert.StartsWith("Project 'myproject' renamed to 'MyProject'", answer);
+        Assert.Equal(("myproject", "MyProject"), (answer.Value!.From, answer.Value.To));
         Assert.Equal("MyProject", (await _harness.Projects.GetAsync("myproject"))!.Name);
     }
 }

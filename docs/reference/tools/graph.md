@@ -204,7 +204,7 @@ Syncs machine-extracted relations into the graph from any source of truth, not o
 
 ## <code>get_<wbr>graph</code>
 
-Renders the directed edges around the selected projects without loading any records. Empty projectName renders the whole graph.
+Answers the directed edges around the selected projects (from, type, to, note) without loading any records. Empty projectName answers the whole graph.
 
 *read-only · every call adds · stays on this machine.*
 

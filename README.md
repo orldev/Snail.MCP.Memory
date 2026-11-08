@@ -185,6 +185,27 @@ You normally never call these yourself — the agent does, guided by the tool de
 
 Symmetric "these are related" links are deliberately not stored: vector similarity derives them at query time.
 
+### What a tool answers
+
+Every tool answers in the envelope every Snail server answers in: one JSON text block, `{"ok":true,"data":…}` on
+success, `{"ok":false,"error":…,"hint":…,"type":…}` on a refusal, which is also flagged `isError`. A record carries its
+id in full — what `forget` and `replaceId` take back — and leaves out what it does not hold; an answer that found
+nothing says which nothing in `note`. A `recall` of a project:
+
+```json
+{"ok":true,"data":{"project":"Snail.MCP.Memory","search":"overview","records":[{"id":"4abbb314-08df-42f3-b3c5-e1ac580aa601","kind":"fact","project":"Snail.MCP.Memory","content":"the stack is .NET","updated":"2026-11-08"}]}}
+```
+
+and a `remember` refused because a very similar record exists, with that record as `data`:
+
+```json
+{"ok":false,"error":"Not stored: a very similar record already exists (similarity 0.97).","hint":"pass replaceId with its id to supersede it, or force: true to store both","type":"duplicate","data":{"id":"4abbb314-…","kind":"fact","project":"Snail.MCP.Memory","content":"the stack is .NET","updated":"2026-11-08","similarity":0.97}}
+```
+
+The refusal kinds are `emptyName`, `unresolvedName`, `notFound`, `nameTaken`, `invalidId`, `duplicate`, `selfLink` and
+`unknownLinkType`; a call whose arguments do not fit the tool is `arguments`, and a failure inside the server
+`internal`. Until 0.5 the tools answered Markdown text; a script that read it reads `data` now.
+
 ### Pending link suggestions
 
 A record that mentions a known project with no edge to its own queues a **pending link suggestion**. The queue returns with every project-scoped `recall` and with `init_project_memory` until each pair is resolved: `link_projects` confirms the relation, `dismiss_link` rejects it permanently — there is no third state, so conceptual relations named in conversation stop getting lost.

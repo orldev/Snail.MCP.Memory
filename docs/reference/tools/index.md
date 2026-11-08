@@ -18,4 +18,4 @@ Long-term memory for an AI agent: records of decisions, lessons and preferences 
 | [`dismiss_link`](graph.md#dismiss_link) | The knowledge graph between projects | Rejects a pending link suggestion: the pair stops being proposed, permanently. |
 | [`unlink_projects`](graph.md#unlink_projects) | The knowledge graph between projects | Removes edges between two projects regardless of direction. |
 | [`sync_project_links`](graph.md#sync_project_links) | The knowledge graph between projects | Syncs machine-extracted relations into the graph from any source of truth, not only code: a project manifest (csproj, package.json), an Obsidian vault's wiki… |
-| [`get_graph`](graph.md#get_graph) | The knowledge graph between projects | Renders the directed edges around the selected projects without loading any records. |
+| [`get_graph`](graph.md#get_graph) | The knowledge graph between projects | Answers the directed edges around the selected projects (from, type, to, note) without loading any records. |

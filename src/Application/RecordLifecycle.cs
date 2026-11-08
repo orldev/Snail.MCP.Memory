@@ -1,6 +1,7 @@
+using System.Text.Json.Nodes;
 using Snail.MCP.Memory.Core.Constants;
-using Snail.MCP.Memory.Core.Formatting;
 using Snail.MCP.Memory.Core.Lifecycle;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Memory.Application;
 
@@ -19,15 +20,24 @@ public sealed class RecordLifecycle(
     private readonly RetentionPolicy _retention = retention ?? RetentionPolicy.Default;
 
     /// <summary>Stores one record: a near-duplicate blocks the insert unless forced, <paramref name="replaceIdRaw"/> supersedes keeping the creation date, a missing project is registered on the fly, <paramref name="links"/> creates edges atomically, and mentioned-but-unlinked projects queue pending suggestions.</summary>
-    public async Task<string> RememberAsync(
+    /// <param name="projectName">The project the record belongs to.</param>
+    /// <param name="content">The knowledge itself.</param>
+    /// <param name="kind">The record's kind; empty is <c>note</c>.</param>
+    /// <param name="title">A short label; may be empty.</param>
+    /// <param name="replaceIdRaw">The id of the record this one supersedes; empty for none.</param>
+    /// <param name="force">Whether to store despite a near-duplicate.</param>
+    /// <param name="links">Edges to create from the record's project.</param>
+    /// <param name="duplicateOf">How a refused near-duplicate is told to the caller, as the failure's details.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    public async Task<Answer<Remembered>> RememberAsync(
         string projectName, string content, string kind = "", string title = "",
         string replaceIdRaw = "", bool force = false, IReadOnlyList<RecordLink>? links = null,
-        CancellationToken cancellationToken = default)
+        Func<ScoredRecord, JsonNode>? duplicateOf = null, CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
         if (project.Length == 0)
-            return Messages.ProjectNameEmpty;
+            return Answer.Failed(Messages.ProjectNameEmpty, Messages.ProjectNameEmptyHint, Refusals.EmptyName);
 
         var now = timeProvider.GetUtcNow();
         await EnsureProjectAsync(project, now, cancellationToken);
@@ -40,22 +50,20 @@ public sealed class RecordLifecycle(
         if (!string.IsNullOrWhiteSpace(replaceIdRaw))
         {
             if (!Guid.TryParse(replaceIdRaw.Trim(), out var replaceId))
-                return Messages.RecordIdInvalid(replaceIdRaw.Trim());
+                return Answer.Failed(Messages.RecordIdInvalid(replaceIdRaw.Trim()), Messages.RecordIdInvalidHint, Refusals.InvalidId);
 
             replaced = await records.GetAsync(replaceId, cancellationToken);
 
             if (replaced is null)
-                return Messages.RecordNotFound(replaceId);
+                return Answer.Failed(Messages.RecordNotFound(replaceId), Messages.RecordNotFoundHint, Refusals.NotFound);
         }
         else if (!force && embedding is { } vector &&
                  await FindDuplicateAsync(vector, ProjectIdentity.Key(project), cancellationToken) is { } duplicate)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine(Messages.DuplicateFound(duplicate.Similarity!.Value));
-            builder.AppendLine();
-            MemoryFormatter.AppendRecord(builder, duplicate.Record, duplicate.Similarity);
-
-            return builder.ToString().TrimEnd();
+            return new AnswerFailure(Messages.DuplicateFound(duplicate.Similarity!.Value), Messages.DuplicateFoundHint, Refusals.Duplicate)
+            {
+                Details = duplicateOf?.Invoke(duplicate),
+            };
         }
 
         var record = new MemoryRecord
@@ -74,50 +82,45 @@ public sealed class RecordLifecycle(
         if (replaced is not null)
             await records.DeleteAsync([replaced.Id], cancellationToken);
 
-        var message = new StringBuilder(replaced is null
-            ? Messages.Recorded(record.Kind, record.Project, record.Id)
-            : Messages.RecordReplaced(replaced.Id, record.Id));
+        var linked = new List<Answer<Linked>>();
 
         foreach (var link in links ?? [])
-            message.AppendLine().Append(await graph.LinkAsync(project, link.To, link.Type.Wire(), link.Note, cancellationToken));
+            linked.Add(await graph.LinkAsync(project, link.To, link.Type.Wire(), link.Note, cancellationToken));
 
-        var proposed = await graph.ProposeMentionsAsync(
-            project, EmbeddingText(title, content), MemoryFormatter.Label(record), cancellationToken);
-
-        if (proposed.Count > 0)
-            message.AppendLine().AppendLine().Append(MemoryFormatter.RenderPending(proposed));
-
+        var proposed = await graph.ProposeMentionsAsync(project, EmbeddingText(title, content), record.Label, cancellationToken);
         var purged = await records.PurgeEventsBeforeAsync(now - _retention.EventTtl, cancellationToken);
 
-        if (purged > 0)
-            message.Append(Messages.PurgeNotice(purged));
-
-        return message.ToString();
+        return Answer.Ok(new Remembered(record, replaced?.Id, linked, proposed, purged));
     }
 
-    /// <summary>Finds records by meaning: an empty query renders an overview, an empty project searches the whole memory, returned records are marked as accessed.</summary>
-    public async Task<string> RecallAsync(
+    /// <summary>Finds records by meaning: an empty query answers an overview, an empty project searches the whole memory, returned records are marked as accessed.</summary>
+    public async Task<Answer<Recall>> RecallAsync(
         string query = "", string projectName = "", string kind = "", int limit = 8,
         CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
         if (project.Length > 0 && await projects.GetAsync(ProjectIdentity.Key(project), cancellationToken) is null)
-            return Messages.ProjectNotFound(project);
+            return Answer.Failed(Messages.ProjectNotFound(project), Messages.ProjectNotFoundHint, Refusals.NotFound);
 
         var filter = new RecordFilter(
             project.Length > 0 ? ProjectIdentity.Key(project) : null,
             string.IsNullOrWhiteSpace(kind) ? null : RecordKinds.Normalize(kind));
         var top = Math.Clamp(limit, 1, 50);
-        var kindLabel = MemoryFormatter.KindLabel(filter.Kind);
+        var pendingLinks = project.Length == 0 ? [] : await graph.PendingAsync(ProjectIdentity.Key(project), cancellationToken);
 
         if (string.IsNullOrWhiteSpace(query))
         {
             var listed = await records.ListAsync(filter, top, cancellationToken);
             await MarkAccessedAsync(listed, cancellationToken);
 
-            return await WithPendingAsync(MemoryFormatter.RenderOverview(
-                project.Length > 0 ? project : Messages.ScopeWholeMemory, kindLabel, listed), project, cancellationToken);
+            var newest = listed
+                .OrderBy(record => KindRank(record.Kind))
+                .ThenByDescending(record => record.Updated)
+                .Select(record => new ScoredRecord(record, null))
+                .ToList();
+
+            return Answer.Ok(new Recall(project, "", filter.Kind ?? "", RecallSearch.Overview, newest, pendingLinks));
         }
 
         var embedding = await embedder.TryEmbedAsync(query.Trim(), EmbeddingPurpose.Query, cancellationToken);
@@ -130,32 +133,32 @@ public sealed class RecordLifecycle(
 
         await MarkAccessedAsync(found.Select(scored => scored.Record), cancellationToken);
 
-        return await WithPendingAsync(MemoryFormatter.RenderRecall(
-            query.Trim(), MemoryFormatter.Scope(project), kindLabel, found, usedTextFallback: embedding is null),
-            project, cancellationToken);
+        var search = embedding is null ? RecallSearch.Text : RecallSearch.Meaning;
+
+        return Answer.Ok(new Recall(project, query.Trim(), filter.Kind ?? "", search, found, pendingLinks));
     }
 
     /// <summary>Deletes records by id; several ids come comma- or space-separated.</summary>
-    public async Task<string> ForgetAsync(string idsRaw, CancellationToken cancellationToken = default)
+    public async Task<Answer<Forgotten>> ForgetAsync(string idsRaw, CancellationToken cancellationToken = default)
     {
         var ids = new List<Guid>();
 
         foreach (var raw in idsRaw.Split([',', ' ', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (!Guid.TryParse(raw, out var id))
-                return Messages.RecordIdInvalid(raw);
+                return Answer.Failed(Messages.RecordIdInvalid(raw), Messages.RecordIdInvalidHint, Refusals.InvalidId);
 
             ids.Add(id);
         }
 
         if (ids.Count == 0)
-            return Messages.RecordIdInvalid(idsRaw.Trim());
+            return Answer.Failed(Messages.RecordIdInvalid(idsRaw.Trim()), Messages.RecordIdInvalidHint, Refusals.InvalidId);
 
-        return Messages.RecordsForgotten(await records.DeleteAsync(ids, cancellationToken));
+        return Answer.Ok(new Forgotten(await records.DeleteAsync(ids, cancellationToken)));
     }
 
     /// <summary>Nominates deletion candidates — never-recalled durable records and untouched tasks; deletion stays a confirmed <c>forget</c>.</summary>
-    public async Task<string> ReviewAsync(string projectName = "", CancellationToken cancellationToken = default)
+    public async Task<Review> ReviewAsync(string projectName = "", CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
         var filter = new RecordFilter(project.Length > 0 ? ProjectIdentity.Key(project) : null);
@@ -172,7 +175,7 @@ public sealed class RecordLifecycle(
             .Where(record => record.Kind == RecordKinds.Task && record.Updated <= cutoff)
             .ToList();
 
-        return MemoryFormatter.RenderReview(staleDurable, staleTasks, _retention.StaleAfter.Days);
+        return new Review(project, _retention.StaleAfter.Days, staleDurable, staleTasks);
     }
 
     private async Task EnsureProjectAsync(string project, DateTimeOffset now, CancellationToken cancellationToken)
@@ -191,17 +194,6 @@ public sealed class RecordLifecycle(
             : null;
     }
 
-    /// <summary>Appends the project's open link suggestions — the queue returns with every project-scoped recall until resolved.</summary>
-    private async Task<string> WithPendingAsync(string answer, string project, CancellationToken cancellationToken)
-    {
-        if (project.Length == 0)
-            return answer;
-
-        var queue = await graph.PendingAsync(ProjectIdentity.Key(project), cancellationToken);
-
-        return queue.Count == 0 ? answer : $"{answer}\n\n{MemoryFormatter.RenderPending(queue)}";
-    }
-
     private Task MarkAccessedAsync(IEnumerable<MemoryRecord> found, CancellationToken cancellationToken)
     {
         var ids = found.Select(record => record.Id).ToList();
@@ -209,6 +201,14 @@ public sealed class RecordLifecycle(
         return ids.Count == 0
             ? Task.CompletedTask
             : records.MarkAccessedAsync(ids, timeProvider.GetUtcNow(), cancellationToken);
+    }
+
+    /// <summary>Where a kind stands in an overview: the canonical kinds in their order, every other tag after them.</summary>
+    private static int KindRank(string kind)
+    {
+        var index = RecordKinds.Canonical.ToList().IndexOf(kind);
+
+        return index < 0 ? RecordKinds.Canonical.Count : index;
     }
 
     private static string EmbeddingText(string title, string content) =>

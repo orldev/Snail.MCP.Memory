@@ -54,7 +54,8 @@ public sealed class HttpContractTests : IAsyncLifetime
 
         var read = await reader.CallToolAsync("recall", new Dictionary<string, object?> { ["projectName"] = "HttpProbe" }, cancellationToken: cancellation.Token);
 
-        Assert.Contains("one server for every session", read.Text(), StringComparison.Ordinal);
+        Assert.True(read.IsOk(), read.Text());
+        Assert.Equal("one server for every session", read.Data()!["records"]![0]!["content"]!.GetValue<string>());
     }
 
     [Fact]
@@ -66,7 +67,23 @@ public sealed class HttpContractTests : IAsyncLifetime
 
         var answer = await client.CallToolAsync("init_project_memory", new Dictionary<string, object?>(), cancellationToken: cancellation.Token);
 
-        Assert.Contains("RootsProbe", answer.Text(), StringComparison.Ordinal);
+        Assert.True(answer.IsOk(), answer.Text());
+        Assert.Equal("RootsProbe", answer.Data()!["project"]!.GetValue<string>());
+    }
+
+    /// <summary>A refusal is the failure envelope, flagged an error, with the kind a program branches on and what to do.</summary>
+    [Fact]
+    public async Task ARefusal_IsTheFailureEnvelope()
+    {
+        using var cancellation = new CancellationTokenSource(Timeout);
+        await using var client = await ConnectAsync(roots: null, cancellation.Token);
+
+        var answer = await client.CallToolAsync("forget", new Dictionary<string, object?> { ["ids"] = "not-an-id" }, cancellationToken: cancellation.Token);
+
+        Assert.True(answer.IsError);
+        Assert.False(answer.IsOk());
+        Assert.Equal("invalidId", answer.Type());
+        Assert.NotNull(answer.Hint());
     }
 
     /// <summary>A page in a browser always sends Origin and an agent's client never does: no web page may reach the server.</summary>
