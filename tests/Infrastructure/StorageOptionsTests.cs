@@ -219,6 +219,22 @@ public sealed class StorageOptionsTests
         Assert.False(http.ListensOnEveryInterface);
     }
 
+    /// The program bound a word for a number before its host existed and crashed with the binder's trace and exit
+    /// code 134; it names the variable in one line and exits with 1.
+    [Fact]
+    public async Task Program_SettingOfTheWrongType_ExitsNamingTheVariable()
+    {
+        var environment = new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"] = "abc" };
+
+        var exited = await Assert.ThrowsAsync<ServerExitedException>(() => ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment));
+
+        Assert.Equal(1, exited.ExitCode);
+        Assert.Equal(
+            "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES (or IdleTimeoutMinutes in the settings file) is 'abc'; it is not a number (Int32).",
+            exited.Stderr.Trim());
+        Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
+    }
+
     private static StorageOptions Bind(IDictionary variables) => StorageOptions.Load(file: null, variables);
 
     private static IConfiguration Settings(IDictionary variables) =>

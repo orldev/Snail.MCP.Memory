@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using Snail.MCP.Memory.Core.Constants;
 using Snail.MCP.Memory.Core.Lifecycle;
 using Snail.Sdk.Mcp.Hosting.Answers;
@@ -19,7 +18,7 @@ public sealed class RecordLifecycle(
 {
     private readonly RetentionPolicy _retention = retention ?? RetentionPolicy.Default;
 
-    /// <summary>Stores one record: a near-duplicate blocks the insert unless forced, <paramref name="replaceIdRaw"/> supersedes keeping the creation date, a missing project is registered on the fly, <paramref name="links"/> creates edges atomically, and mentioned-but-unlinked projects queue pending suggestions.</summary>
+    /// <summary>Stores one record: a near-duplicate blocks the insert unless forced (the refusal carries it as its details), <paramref name="replaceIdRaw"/> supersedes keeping the creation date, a missing project is registered on the fly, <paramref name="links"/> creates edges atomically, and mentioned-but-unlinked projects queue pending suggestions.</summary>
     /// <param name="projectName">The project the record belongs to.</param>
     /// <param name="content">The knowledge itself.</param>
     /// <param name="kind">The record's kind; empty is <c>note</c>.</param>
@@ -27,12 +26,11 @@ public sealed class RecordLifecycle(
     /// <param name="replaceIdRaw">The id of the record this one supersedes; empty for none.</param>
     /// <param name="force">Whether to store despite a near-duplicate.</param>
     /// <param name="links">Edges to create from the record's project.</param>
-    /// <param name="duplicateOf">How a refused near-duplicate is told to the caller, as the failure's details.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     public async Task<Answer<Remembered>> RememberAsync(
         string projectName, string content, string kind = "", string title = "",
         string replaceIdRaw = "", bool force = false, IReadOnlyList<RecordLink>? links = null,
-        Func<ScoredRecord, JsonNode>? duplicateOf = null, CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
@@ -60,10 +58,8 @@ public sealed class RecordLifecycle(
         else if (!force && embedding is { } vector &&
                  await FindDuplicateAsync(vector, ProjectIdentity.Key(project), cancellationToken) is { } duplicate)
         {
-            return new AnswerFailure(Messages.DuplicateFound(duplicate.Similarity!.Value), Messages.DuplicateFoundHint, Refusals.Duplicate)
-            {
-                Details = duplicateOf?.Invoke(duplicate),
-            };
+            return Answer.Failed(Messages.DuplicateFound(duplicate.Similarity!.Value), Messages.DuplicateFoundHint, Refusals.Duplicate)
+                .WithDetails(duplicate);
         }
 
         var record = new MemoryRecord

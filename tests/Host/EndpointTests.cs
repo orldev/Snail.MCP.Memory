@@ -25,27 +25,30 @@ public sealed class EndpointTests
         Assert.Equal(McpTransport.Stdio, Read([]).Transport);
     }
 
-    /// <summary>Read in the test's process, whose entry assembly names no server, a refusal names the key of the settings file.</summary>
+    /// <summary>Read in the test's process, whose entry assembly is the test runner, a refusal still names the variable: the options name the server.</summary>
     [Theory]
     [InlineData("http://0.0.0.0:9230")]
     [InlineData("http://192.168.1.20:9230")]
     public void Read_AnAddressBeyondLoopback_IsRefused(string url)
     {
-        var refusal = Assert.Throws<InvalidOperationException>(() => Read(new() { ["Transport"] = "Http", ["Url"] = url }));
+        var refusal = Assert.Throws<StartRefusedException>(() => Read(new() { ["Transport"] = "Http", ["Url"] = url }));
 
-        Assert.StartsWith($"Url is '{url}'", refusal.Message, StringComparison.Ordinal);
+        Assert.StartsWith($"SNAIL_MCP_MEMORY_URL (or Url in the settings file) is '{url}'", refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Read_ListensOnEveryInterface_IsRefused()
     {
-        var refusal = Assert.Throws<InvalidOperationException>(() =>
+        var refusal = Assert.Throws<StartRefusedException>(() =>
             Read(new() { ["Transport"] = "Http", ["ListensOnEveryInterface"] = "true" }));
 
-        Assert.StartsWith("ListensOnEveryInterface is 'true'", refusal.Message, StringComparison.Ordinal);
+        Assert.StartsWith(
+            "SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE (or ListensOnEveryInterface in the settings file) is 'true'",
+            refusal.Message,
+            StringComparison.Ordinal);
     }
 
-    /// <summary>The program itself names the variable its operator set, and never starts listening.</summary>
+    /// <summary>The program itself names the variable its operator set in one line, exits with 1 rather than crashing, and never starts listening.</summary>
     [Fact]
     public async Task Program_ToldToListenOnEveryInterface_ExitsNamingTheVariable()
     {
@@ -71,8 +74,11 @@ public sealed class EndpointTests
 
             await process.WaitForExitAsync(deadline.Token);
 
-            Assert.NotEqual(0, process.ExitCode);
-            Assert.Contains("SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE", await stderr, StringComparison.Ordinal);
+            var error = await stderr;
+
+            Assert.Equal(1, process.ExitCode);
+            Assert.Contains("SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE", error, StringComparison.Ordinal);
+            Assert.DoesNotContain("   at ", error, StringComparison.Ordinal);
         }
         finally
         {
