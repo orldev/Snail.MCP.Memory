@@ -4,18 +4,18 @@ using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
 
-ServerFolders.MoveFromSnailNames(StorageOptions.ServerName);
+var settings = ServerSettings.Read(StorageOptions.ServerName);
+var options = StorageOptions.From(settings);
+var endpoint = McpEndpoint.Read(settings, StorageOptions.DefaultUrl);
 
-var options = StorageOptions.Load();
-
-if (options.Transport is Transport.Http)
+if (endpoint.Transport is McpTransport.Http)
 {
-    await HttpServerHost.RunAsync(args, options);
+    await HttpServerHost.RunAsync(args, endpoint, settings, options);
 
     return;
 }
 
-await McpHost.CreateBuilder(args)
+await McpHost.CreateBuilder(args, settings)
     .ConfigureMcpServer(options)
     .Build()
     .RunAsync();

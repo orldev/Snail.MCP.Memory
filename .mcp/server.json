@@ -84,7 +84,7 @@
         },
         {
           "name": "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES",
-          "description": "Minutes without a tool call before an orphaned server process shuts itself down. Default: 60.",
+          "description": "Minutes without any MCP message before an orphaned stdio server process shuts itself down; 0 is the default hour. Default: 60.",
           "isRequired": false,
           "default": "60"
         },
@@ -182,7 +182,7 @@
         },
         {
           "name": "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES",
-          "description": "Minutes without a tool call before an orphaned server process shuts itself down. Default: 60.",
+          "description": "Minutes without any MCP message before an orphaned stdio server process shuts itself down; 0 is the default hour. Default: 60.",
           "isRequired": false,
           "default": "60"
         },

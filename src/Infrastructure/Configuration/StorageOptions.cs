@@ -18,24 +18,18 @@ public enum Provider
     Postgres
 }
 
-/// <summary>How clients reach the server.</summary>
-public enum Transport
-{
-    /// <summary>One client, which starts the server and owns its standard input and output.</summary>
-    Stdio,
-
-    /// <summary>Every session of the machine through one long-running server on a loopback address.</summary>
-    Http
-}
-
-/// <summary>Server configuration: flat keys from the settings file or <c>SNAIL_MCP_MEMORY_*</c> variables; <see cref="Load()"/> is the single reader.</summary>
+/// <summary>Server configuration: flat keys from the settings file or <c>SNAIL_MCP_MEMORY_*</c> variables, bound by <see cref="From"/>.</summary>
+/// <remarks>
+/// Where clients reach the server — <c>Transport</c>, <c>Url</c>, <c>Port</c> — is not here: the same settings are read for it by
+/// <see cref="McpEndpoint.Read(IConfiguration, Uri)"/>, with <see cref="DefaultUrl"/> as the address.
+/// </remarks>
 public sealed class StorageOptions
 {
     /// <summary>The server's short name, which names its settings file and its variables.</summary>
     public const string ServerName = "memory";
 
-    /// <summary>Where the HTTP server listens unless <see cref="Url"/> says otherwise.</summary>
-    public const string DefaultUrl = "http://127.0.0.1:9230";
+    /// <summary>Where the HTTP server listens unless <c>Url</c> (<c>SNAIL_MCP_MEMORY_URL</c>) or <c>Port</c> says otherwise.</summary>
+    public static readonly Uri DefaultUrl = new("http://127.0.0.1:9230");
 
     /// <summary>Database file name inside the data directory.</summary>
     public const string DefaultDatabaseFileName = "memory.db";
@@ -77,13 +71,7 @@ public sealed class StorageOptions
     /// <summary>Which backend stores the memory. Default: <see cref="Provider.Sqlite"/>.</summary>
     public Provider Provider { get; set; } = Provider.Sqlite;
 
-    /// <summary>Stdio by default; Http keeps one server for every session — see <see cref="Url"/>.</summary>
-    public Transport Transport { get; set; } = Transport.Stdio;
-
-    /// <summary>Loopback address the HTTP server listens on. Empty — <see cref="DefaultUrl"/>.</summary>
-    public string? Url { get; set; }
-
-    /// <summary>Data directory. Empty — <see cref="ServerPaths.DefaultDataDirectory"/>.</summary>
+    /// <summary>Data directory. Empty — <c>~/.s3l-mcp-memory</c> (<see cref="ServerFolders.DataDirectory(string)"/>).</summary>
     public string? Directory { get; set; }
 
     /// <summary>SQLite: a file path or connection string, empty — <c>{Directory}/memory.db</c>; PostgreSQL: the full connection string, required.</summary>
@@ -126,21 +114,17 @@ public sealed class StorageOptions
     /// <summary>Days between background audit runs. Empty — <see cref="DefaultAuditIntervalDays"/>; 0 — the audit is off.</summary>
     public int? AuditIntervalDays { get; set; }
 
-    /// <summary>Reads options from the settings file chain of <see cref="ServerSettings"/> and the variables, which win.</summary>
-    public static StorageOptions Load() => Load(ServerSettings.FileOf(ServerName), Environment.GetEnvironmentVariables());
+    /// <summary>Binds the options from the server's settings as <see cref="ServerSettings.Read(string)"/> read them: the settings file, then the variables, which win.</summary>
+    public static StorageOptions From(IConfiguration settings) => settings.Get<StorageOptions>() ?? new StorageOptions();
 
     /// <summary>Reads options from <paramref name="file"/>, when there is one, and the server's variables among <paramref name="variables"/>.</summary>
     internal static StorageOptions Load(string? file, IDictionary variables) =>
-        new ConfigurationBuilder()
+        From(new ConfigurationBuilder()
             .AddServerSettings(ServerName, file, variables)
-            .Build()
-            .Get<StorageOptions>() ?? new StorageOptions();
+            .Build());
 
-    /// <summary>The address to listen on; the host refuses any that is not a loopback one.</summary>
-    public Uri ResolveUrl() => new(string.IsNullOrWhiteSpace(Url) ? DefaultUrl : Url.Trim(), UriKind.Absolute);
-
-    /// <summary>Configured directory or the default one, with a leading <c>~</c> expanded.</summary>
-    public string ResolveDirectory() => ServerPaths.ExpandHome(Directory);
+    /// <summary>Configured directory, absolute with a leading <c>~</c> expanded, or the default one.</summary>
+    public string ResolveDirectory() => ServerFolders.FullPath(Directory, ServerFolders.DataDirectory(ServerName));
 
     /// <summary>Full connection string: SQLite wraps a bare path into <c>Data Source=</c>; PostgreSQL requires the configured string.</summary>
     public string ResolveConnectionString()
@@ -156,7 +140,7 @@ public sealed class StorageOptions
 
         var value = ConnectionString.Trim();
 
-        return value.Contains('=', StringComparison.Ordinal) ? value : $"Data Source={ServerPaths.ExpandHome(value)}";
+        return value.Contains('=', StringComparison.Ordinal) ? value : $"Data Source={ServerFolders.FullPath(value)}";
     }
 
     /// <summary>Configured partition tag, case-folded; empty — the whole shared base.</summary>
@@ -169,13 +153,13 @@ public sealed class StorageOptions
     public string ResolveEmbeddingModelPath() =>
         string.IsNullOrWhiteSpace(EmbeddingModelPath)
             ? Path.Combine(ResolveDirectory(), ModelsDirectoryName, "model.onnx")
-            : ServerPaths.ExpandHome(EmbeddingModelPath);
+            : ServerFolders.FullPath(EmbeddingModelPath);
 
     /// <summary>Configured tokenizer path or the default file in the models directory.</summary>
     public string ResolveEmbeddingTokenizerPath() =>
         string.IsNullOrWhiteSpace(EmbeddingTokenizerPath)
             ? Path.Combine(ResolveDirectory(), ModelsDirectoryName, "sentencepiece.bpe.model")
-            : ServerPaths.ExpandHome(EmbeddingTokenizerPath);
+            : ServerFolders.FullPath(EmbeddingTokenizerPath);
 
     /// <summary>Configured model URL or the default one.</summary>
     public string ResolveEmbeddingModelUrl() =>
@@ -205,7 +189,7 @@ public sealed class StorageOptions
     public double ResolveSimilarityFloor() =>
         SimilarityFloor is >= 0 and <= 1 ? SimilarityFloor.Value : DefaultSimilarityFloor;
 
-    /// <summary>Configured idle timeout or the default hour.</summary>
+    /// <summary>Configured idle timeout or the default hour; the shutdown cannot be turned off, so zero and below are the default too.</summary>
     public TimeSpan ResolveIdleTimeout() =>
         TimeSpan.FromMinutes(IdleTimeoutMinutes is > 0 ? IdleTimeoutMinutes.Value : DefaultIdleTimeoutMinutes);
 

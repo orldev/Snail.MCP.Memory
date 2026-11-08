@@ -1,4 +1,5 @@
 using System.Collections;
+using Microsoft.Extensions.Configuration;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
 
@@ -62,7 +63,7 @@ public sealed class StorageOptionsTests
         });
 
         Assert.False(options.IsEmbeddingEnabled());
-        Assert.Equal(Path.Combine(ServerPaths.Home, "models/custom.onnx"), options.ResolveEmbeddingModelPath());
+        Assert.Equal(Path.Combine(ServerFolders.Home, "models/custom.onnx"), options.ResolveEmbeddingModelPath());
         Assert.Equal(512, options.ResolveEmbeddingDimensions());
         Assert.Equal(0.9, options.ResolveDuplicateThreshold());
     }
@@ -190,10 +191,38 @@ public sealed class StorageOptionsTests
     {
         var options = Bind(new Hashtable { ["SNAIL_MCP_MEMORY_DIRECTORY"] = "~/memory" });
 
-        Assert.Equal(Path.Combine(ServerPaths.Home, "memory"), options.ResolveDirectory());
+        Assert.Equal(Path.Combine(ServerFolders.Home, "memory"), options.ResolveDirectory());
+    }
+
+    /// No directory is the server's own data folder, ~/.s3l-mcp-memory, and a relative one is made absolute.
+    [Fact]
+    public void DataDirectory_Unset_IsTheServersDataFolder()
+    {
+        Assert.Equal(ServerFolders.DataDirectory(StorageOptions.ServerName), Bind(new Hashtable()).ResolveDirectory());
+        Assert.Equal(ServerFolders.DataDirectory(StorageOptions.ServerName), Bind(new Hashtable { ["SNAIL_MCP_MEMORY_DIRECTORY"] = "  " }).ResolveDirectory());
+        Assert.Equal(Path.GetFullPath("memory"), Bind(new Hashtable { ["SNAIL_MCP_MEMORY_DIRECTORY"] = "memory" }).ResolveDirectory());
+    }
+
+    /// Stdio unless the settings say Http or name a port; the shared server's address is loopback port 9230 unless Url says otherwise.
+    [Fact]
+    public void Endpoint_FromTheSameSettings_IsStdioOrTheConfiguredHttpAddress()
+    {
+        var unset = McpEndpoint.Read(Settings(new Hashtable()), StorageOptions.DefaultUrl);
+        var http = McpEndpoint.Read(
+            Settings(new Hashtable { ["SNAIL_MCP_MEMORY_TRANSPORT"] = "Http", ["SNAIL_MCP_MEMORY_URL"] = "http://127.0.0.1:9231/" }),
+            StorageOptions.DefaultUrl);
+
+        Assert.Equal(McpTransport.Stdio, unset.Transport);
+        Assert.Equal(new Uri("http://127.0.0.1:9230"), unset.Url);
+        Assert.Equal(McpTransport.Http, http.Transport);
+        Assert.Equal(9231, http.Url.Port);
+        Assert.False(http.ListensOnEveryInterface);
     }
 
     private static StorageOptions Bind(IDictionary variables) => StorageOptions.Load(file: null, variables);
+
+    private static IConfiguration Settings(IDictionary variables) =>
+        new ConfigurationBuilder().AddServerSettings(StorageOptions.ServerName, file: null, variables).Build();
 
     private static string WriteSettings(string json)
     {
