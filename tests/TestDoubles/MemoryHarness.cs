@@ -1,5 +1,6 @@
 using CommunityToolkit.VectorData.SqliteVec;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using Snail.MCP.Memory.Infrastructure.Persistence;
 
 namespace Snail.MCP.Memory.Tests.TestDoubles;
@@ -28,7 +29,7 @@ public sealed class MemoryHarness : IDisposable
         Graph = GraphIn(workspace);
         Pending = PendingIn(workspace);
         Embedder = new FakeEmbedder(dimensions: dimensions);
-        Time = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
+        Time = new FakeTimeProvider(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
     }
 
     public MemoryDb Database { get; }
@@ -43,7 +44,7 @@ public sealed class MemoryHarness : IDisposable
 
     public FakeEmbedder Embedder { get; }
 
-    public FixedTimeProvider Time { get; }
+    public FakeTimeProvider Time { get; }
 
     /// <summary>A record store over the same database, partitioned to <paramref name="workspace"/>.</summary>
     public VectorRecordStore RecordsIn(string workspace) => new(
@@ -74,22 +75,4 @@ public sealed class MemoryHarness : IDisposable
     {
         public MemoryDbContext CreateDbContext() => new(options);
     }
-}
-
-/// <summary>
-/// A clock the test moves by hand. The instant is stored as ticks behind <see cref="Interlocked"/>
-/// because watcher tests read it from another thread, and a torn read of the
-/// <see cref="DateTimeOffset"/> struct would be a flake no one could reproduce.
-/// </summary>
-public sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-{
-    private long _utcTicks = now.UtcTicks;
-
-    public DateTimeOffset Now
-    {
-        get => new(Interlocked.Read(ref _utcTicks), TimeSpan.Zero);
-        set => Interlocked.Exchange(ref _utcTicks, value.UtcTicks);
-    }
-
-    public override DateTimeOffset GetUtcNow() => Now;
 }

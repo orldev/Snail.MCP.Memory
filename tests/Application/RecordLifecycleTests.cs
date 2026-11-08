@@ -60,7 +60,7 @@ public sealed class RecordLifecycleTests : IDisposable
         await _service.RememberAsync("ProjectA", "old knowledge");
         var old = Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
 
-        _harness.Time.Now = _harness.Time.Now.AddDays(10);
+        _harness.Time.Advance(TimeSpan.FromDays(10));
         var answer = await _service.RememberAsync("ProjectA", "new knowledge", replaceIdRaw: old.Id.ToString());
 
         Assert.Contains("superseded", answer);
@@ -186,7 +186,7 @@ public sealed class RecordLifecycleTests : IDisposable
         await _service.RememberAsync("ProjectA", "something happened", kind: "event");
         await _service.RememberAsync("ProjectA", "an everlasting lesson", kind: "lesson");
 
-        _harness.Time.Now = _harness.Time.Now.AddDays(100);
+        _harness.Time.Advance(TimeSpan.FromDays(100));
         var answer = await _service.RememberAsync("ProjectA", "new knowledge");
 
         Assert.Contains(Messages.PurgeNotice(1).Trim(), answer);
@@ -267,7 +267,7 @@ public sealed class RecordLifecycleTests : IDisposable
         await _service.RememberAsync("ProjectA", "an old task", kind: "task");
         await _service.RememberAsync("ProjectA", "recalled knowledge", kind: "fact", force: true);
 
-        _harness.Time.Now = _harness.Time.Now.AddDays(200);
+        _harness.Time.Advance(TimeSpan.FromDays(200));
         await _service.RecallAsync("recalled knowledge");
 
         var answer = await _service.ReviewAsync("ProjectA");

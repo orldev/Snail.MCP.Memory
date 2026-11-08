@@ -159,8 +159,9 @@ those travel wherever they are copied.
 | `DUPLICATE_THRESHOLD` | `0.95` | Similarity above which `remember` refuses a near-duplicate and offers to supersede the old record instead |
 | `SIMILARITY_FLOOR` | `0.75` | Similarity below which a search hit is dropped. Raise to ~`0.8` if recall feels noisy, lower if it misses things |
 | `TRANSPORT` | `Stdio` | `Http` runs one server for every session of the machine — see [One server for every session](#one-server-for-every-session) |
-| `URL` | `http://127.0.0.1:9230` | Where the HTTP server listens; only a loopback address is accepted |
-| `IDLE_TIMEOUT_MINUTES` | `60` | Minutes without a tool call before an orphaned server process shuts itself down |
+| `URL` | `http://127.0.0.1:9230` | Where the HTTP server listens. Loopback unless the address is `0.0.0.0`, `LISTENS_ON_EVERY_INTERFACE` is `true` or the server runs in a container — the endpoint has no key, so keep it on loopback |
+| `PORT` | — | A port alone also means HTTP: the server listens on that port of `URL`'s host |
+| `IDLE_TIMEOUT_MINUTES` | `60` | Minutes without any MCP message before an orphaned stdio server process shuts itself down; `0` is the default hour, it cannot be turned off. A server over HTTP is never stopped |
 | `AUDIT_INTERVAL_DAYS` | `7` | Days between [background audit](#pending-link-suggestions) runs; `0` disables the audit |
 
 ## What the agent can do with it
@@ -222,8 +223,9 @@ claude mcp add -s user --transport http mem0 http://127.0.0.1:9230/mcp
 
 Settings other than the transport go into `~/.config/s3l-mcp-memory/config.json`. `init_project_memory` without a
 name asks the client for the folder it works in (MCP roots), since the server's own folder is nobody's project. The
-endpoint has no key: it listens on loopback only and refuses any request that carries an `Origin`, which every
-browser page sends and no agent client does.
+endpoint has no key: it listens on loopback — unless `URL` names `0.0.0.0`, `LISTENS_ON_EVERY_INTERFACE` is `true` or it
+runs in a container, which open the port on every interface, so don't — and refuses any request that carries an
+`Origin`, which every browser page sends and no agent client does.
 
 ## Sharing one database
 
@@ -250,7 +252,7 @@ Nothing else changes — same tools, same behavior, tables and vector indexes ar
 - **Language**: record content is stored in the language of your conversation; the embedding model is multilingual, so search works across languages.
 - **Offline**: after the one-time model download the server needs no network at all.
 - **Lifecycle**: `event` records expire after 90 days; durable kinds are only ever deleted by an explicit, confirmed `forget`.
-- **Housekeeping**: an orphaned server process shuts itself down after an hour of silence (`IDLE_TIMEOUT_MINUTES`).
+- **Housekeeping**: an orphaned stdio server process shuts itself down after an hour without an MCP message (`IDLE_TIMEOUT_MINUTES`).
 - **Memory when idle**: the embedding model is most of what the server holds; after half an hour without an embedding it is released (~150 MB back, 321 → 173 MB measured), and the next semantic call loads it again in ~0.4 s (`EMBEDDING_IDLE_MINUTES`). The server logs both on stderr.
 - **Your data** is yours: one SQLite file at `~/.s3l-mcp-memory/memory.db`, inspectable with any SQLite browser.
 

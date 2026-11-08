@@ -2,7 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Snail.MCP.Memory.Application;
 using Snail.MCP.Memory.Core.Constants;
-using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Tools;
 
@@ -25,7 +25,7 @@ public static class ProjectMemoryTools
             return await service.InitAsync(projectName, description, seedFrom);
 
         var workingDirectory = await ClientFolder.FindAsync(server, cancellationToken) ?? Directory.GetCurrentDirectory();
-        var fromFolder = DefaultProjectName.FromDirectory(workingDirectory, ServerPaths.Home);
+        var fromFolder = DefaultProjectName.FromDirectory(workingDirectory, ServerFolders.Home);
 
         return string.IsNullOrEmpty(fromFolder)
             ? Messages.ProjectNameNotResolved(workingDirectory)

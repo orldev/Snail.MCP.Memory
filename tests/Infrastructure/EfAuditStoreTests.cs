@@ -19,10 +19,10 @@ public sealed class EfAuditStoreTests : IDisposable
         Assert.True(await store.TryClaimAsync(Week, _harness.Time.GetUtcNow()));
         Assert.False(await store.TryClaimAsync(Week, _harness.Time.GetUtcNow()));
 
-        _harness.Time.Now = _harness.Time.Now.AddDays(3);
+        _harness.Time.Advance(TimeSpan.FromDays(3));
         Assert.False(await store.TryClaimAsync(Week, _harness.Time.GetUtcNow()));
 
-        _harness.Time.Now = _harness.Time.Now.AddDays(4);
+        _harness.Time.Advance(TimeSpan.FromDays(4));
         Assert.True(await store.TryClaimAsync(Week, _harness.Time.GetUtcNow()));
     }
 

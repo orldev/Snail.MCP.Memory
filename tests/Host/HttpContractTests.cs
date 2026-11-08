@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Memory.Infrastructure.Configuration;
@@ -17,62 +14,29 @@ public sealed class HttpContractTests : IAsyncLifetime
 
     private static readonly string Prefix = ServerSettings.PrefixOf(StorageOptions.ServerName);
 
-    private static readonly string ConfigVariable = ServerSettings.FileVariableOf(StorageOptions.ServerName);
-
     private readonly string _dataDirectory = TestFolder.Create();
-    private readonly Uri _endpoint = new($"http://127.0.0.1:{FreePort()}/mcp");
-    private Process _server = null!;
+    private HttpServerProgram _server = null!;
 
+    /// <summary>
+    /// The build beside the tests, or the one SNAIL_MEMORY_SERVER names, told HTTP and its address by HttpServerProgram,
+    /// with its own home and data folder, no model and no audit; ready once its MCP endpoint answers, since it maps no /healthz.
+    /// </summary>
     public async Task InitializeAsync()
     {
-        var (command, arguments) = ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
-        var start = new ProcessStartInfo(command, arguments)
+        var environment = new Dictionary<string, string?>
         {
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            [Prefix + "DIRECTORY"] = _dataDirectory,
+            [Prefix + "EMBEDDING_ENABLED"] = "false",
+            [Prefix + "AUDIT_INTERVAL_DAYS"] = "0",
         };
 
-        start.Environment[Prefix + "TRANSPORT"] = "Http";
-        start.Environment[Prefix + "URL"] = new Uri(_endpoint, "/").ToString();
-        start.Environment[Prefix + "DIRECTORY"] = _dataDirectory;
-        start.Environment[Prefix + "EMBEDDING_ENABLED"] = "false";
-        start.Environment[Prefix + "AUDIT_INTERVAL_DAYS"] = "0";
-        start.Environment[ConfigVariable] = ServerProgram.NoSettingsFile;
-        start.Environment["HOME"] = ServerProgram.Home;
-        start.Environment["USERPROFILE"] = ServerProgram.Home;
-
-        _server = Process.Start(start)!;
-        _server.OutputDataReceived += (_, _) => { };
-        _server.ErrorDataReceived += (_, _) => { };
-        _server.BeginOutputReadLine();
-        _server.BeginErrorReadLine();
-
-        using var waiting = new CancellationTokenSource(Timeout);
-        using var http = new HttpClient();
-
-        while (true)
-        {
-            try
-            {
-                await http.GetAsync(_endpoint, waiting.Token);
-                return;
-            }
-            catch (HttpRequestException) when (!_server.HasExited)
-            {
-                await Task.Delay(100, waiting.Token);
-            }
-        }
+        _server = await HttpServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment, readiness: null);
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _server.Kill(entireProcessTree: true);
-        _server.WaitForExit();
-        _server.Dispose();
+        await _server.DisposeAsync();
         Directory.Delete(_dataDirectory, recursive: true);
-
-        return Task.CompletedTask;
     }
 
     [Fact]
@@ -105,21 +69,10 @@ public sealed class HttpContractTests : IAsyncLifetime
         Assert.Contains("RootsProbe", answer.Text(), StringComparison.Ordinal);
     }
 
+    /// <summary>A page in a browser always sends Origin and an agent's client never does: no web page may reach the server.</summary>
     [Fact]
-    public async Task ARequestFromABrowserIsRefused()
-    {
-        using var http = new HttpClient();
-        using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
-        {
-            Content = new StringContent("""{"jsonrpc":"2.0","id":1,"method":"ping"}""", System.Text.Encoding.UTF8, "application/json"),
-        };
-
-        request.Headers.Add("Origin", "https://example.com");
-
-        using var response = await http.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
+    public async Task ARequestFromABrowserIsRefused() =>
+        Assert.Empty(await HttpGuards.ProblemsAsync(_server.Endpoint));
 
     /// <summary>A client of the shared server, offering <paramref name="roots"/> as its folder when given.</summary>
     /// <remarks>
@@ -139,17 +92,6 @@ public sealed class HttpContractTests : IAsyncLifetime
             };
         }
 
-        return McpClient.CreateAsync(
-            new HttpClientTransport(new HttpClientTransportOptions { Endpoint = _endpoint }),
-            options,
-            cancellationToken: cancellationToken);
-    }
-
-    private static int FreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
+        return _server.SessionAsync(options: options, cancellationToken: cancellationToken);
     }
 }

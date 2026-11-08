@@ -1,25 +1,31 @@
+using Microsoft.Extensions.Configuration;
 using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.Sdk.Mcp.Hosting;
 using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Hosting;
 
-/// <summary>One server for every session of the machine, on a loopback address, kept running by the system.</summary>
+/// <summary>One server for every session of the machine, on a loopback address unless the settings open every interface, kept running by the system.</summary>
 /// <remarks>
 /// <para>
 /// Over stdio each session starts a server of its own: the model, the database connection and the runtime once per
-/// session, ~115 MB each, all writing one database. Over HTTP there is one of each. The idle watchdog is left out —
+/// session, ~115 MB each, all writing one database. Over HTTP there is one of each. The idle shutdown is left out —
 /// it ends a server its one client forgot, and this one has no single client; launchd keeps it alive instead.
 /// </para>
-/// <para>The loopback address and the refusal of browsers are Snail.Sdk.Mcp.Http's, see <see cref="McpHttpHost"/>.</para>
+/// <para>
+/// The address — <c>Transport</c>, <c>Url</c> or <c>Port</c>, loopback unless <c>ListensOnEveryInterface</c>, a <c>0.0.0.0</c> URL or a
+/// container says otherwise — is read by <see cref="McpEndpoint.Read(IConfiguration, Uri)"/>; the host and the refusal of browsers
+/// are Snail.Sdk.Mcp.Http's, see <see cref="McpHttpHost"/>.
+/// </para>
 /// <para>Kept apart from <c>Program</c> so that a stdio server never loads ASP.NET Core.</para>
 /// </remarks>
 public static class HttpServerHost
 {
-    /// <summary>Builds the HTTP server on the configured loopback address and runs it until it is stopped.</summary>
-    public static Task RunAsync(string[] args, StorageOptions options)
+    /// <summary>Builds the HTTP server at the endpoint the settings ask for and runs it until it is stopped.</summary>
+    public static Task RunAsync(string[] args, McpEndpoint endpoint, IConfiguration settings, StorageOptions options)
     {
-        var builder = McpHttpHost.CreateBuilder(args, options.ResolveUrl());
+        var builder = McpHttpHost.CreateBuilder(args, endpoint, settings);
 
         builder.Services
             .AddStorage(options)
