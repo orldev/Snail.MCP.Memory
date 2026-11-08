@@ -1,5 +1,5 @@
 using Snail.MCP.Memory.Core.Constants;
-using Snail.MCP.Memory.Core.Formatting;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Memory.Application;
 
@@ -23,32 +23,28 @@ public sealed class ProjectRegistry(
     /// <summary>How many records are pulled from each seed project.</summary>
     internal const int SeedLimitPerProject = 5;
 
-    /// <summary>Registers a project and returns the creation message plus the experience briefing.</summary>
-    public async Task<string> InitAsync(
+    /// <summary>Registers a project and answers whether it is new, the experience briefing and its open link suggestions.</summary>
+    public async Task<Answer<ProjectInit>> InitAsync(
         string projectName, string description = "", string seedFrom = "", CancellationToken cancellationToken = default)
     {
         var project = ProjectIdentity.Normalize(projectName);
 
         if (project.Length == 0)
-            return Messages.ProjectNameEmpty;
+            return Answer.Failed(Messages.ProjectNameEmpty, Messages.ProjectNameEmptyHint, Refusals.EmptyName);
 
         var created = await projects.TryCreateAsync(
             new ProjectInfo(project, description.Trim(), timeProvider.GetUtcNow()), cancellationToken);
-
-        var headline = created
-            ? Messages.ProjectCreated(project)
-            : Messages.ProjectAlreadyExists(
-                (await projects.GetAsync(ProjectIdentity.Key(project), cancellationToken))?.Name ?? project);
+        var registered = created
+            ? project
+            : (await projects.GetAsync(ProjectIdentity.Key(project), cancellationToken))?.Name ?? project;
         var briefing = await BriefingAsync(project, description, seedFrom, cancellationToken);
         var queue = await pending.ListAsync(ProjectIdentity.Key(project), cancellationToken);
 
-        return queue.Count == 0
-            ? $"{headline}\n\n{briefing}"
-            : $"{headline}\n\n{briefing}\n\n{MemoryFormatter.RenderPending(queue)}";
+        return Answer.Ok(new ProjectInit(registered, created, briefing, queue));
     }
 
     /// <summary>The project listing, filtered by prefix and ordered case-insensitively.</summary>
-    public async Task<string> ListAsync(string prefix = "", CancellationToken cancellationToken = default)
+    public async Task<ProjectListing> ListAsync(string prefix = "", CancellationToken cancellationToken = default)
     {
         var all = await projects.ListAsync(cancellationToken);
 
@@ -57,42 +53,42 @@ public sealed class ProjectRegistry(
             .OrderBy(project => project.Name, ProjectIdentity.Comparer)
             .ToList();
 
-        return MemoryFormatter.RenderProjectList(listed, prefix);
+        return new ProjectListing(prefix.Trim(), listed);
     }
 
     /// <summary>Renames a project everywhere: the registry, every record, every edge.</summary>
-    public async Task<string> RenameAsync(string oldName, string newName, CancellationToken cancellationToken = default)
+    public async Task<Answer<Renamed>> RenameAsync(string oldName, string newName, CancellationToken cancellationToken = default)
     {
         var oldProject = ProjectIdentity.Normalize(oldName);
         var newProject = ProjectIdentity.Normalize(newName);
 
         if (oldProject.Length == 0 || newProject.Length == 0)
-            return Messages.ProjectNameEmpty;
+            return Answer.Failed(Messages.ProjectNameEmpty, Messages.ProjectNameEmptyHint, Refusals.EmptyName);
 
         var oldKey = ProjectIdentity.Key(oldProject);
         var newKey = ProjectIdentity.Key(newProject);
 
         if (await projects.GetAsync(oldKey, cancellationToken) is null)
-            return Messages.ProjectNotFound(oldProject);
+            return Answer.Failed(Messages.ProjectNotFound(oldProject), Messages.ProjectNotFoundHint, Refusals.NotFound);
 
         if (oldKey != newKey && await projects.GetAsync(newKey, cancellationToken) is { } taken)
-            return Messages.RenameTargetTaken(taken.Name);
+            return Answer.Failed(Messages.RenameTargetTaken(taken.Name), Messages.RenameTargetTakenHint, Refusals.NameTaken);
 
         await projects.TryRenameAsync(oldKey, newProject, cancellationToken);
         var movedRecords = await records.RenameProjectAsync(oldKey, newProject, cancellationToken);
         var movedEdges = await graph.RenameProjectAsync(oldKey, newProject, cancellationToken);
         await pending.RenameProjectAsync(oldKey, newProject, cancellationToken);
 
-        return Messages.ProjectRenamed(oldProject, newProject, movedRecords, movedEdges);
+        return Answer.Ok(new Renamed(oldProject, newProject, movedRecords, movedEdges));
     }
 
-    private async Task<string> BriefingAsync(
+    private async Task<Briefing> BriefingAsync(
         string project, string description, string seedFrom, CancellationToken cancellationToken)
     {
         var projectKey = ProjectIdentity.Key(project);
-        var notes = new List<string>();
+        var missing = new List<string>();
         var experience = new List<ScoredRecord>();
-        var similar = new List<(string Project, double Similarity)>();
+        var similar = new List<SimilarProject>();
 
         if (!string.IsNullOrWhiteSpace(description) &&
             await embedder.TryEmbedAsync(description.Trim(), EmbeddingPurpose.Query, cancellationToken) is { } vector)
@@ -106,7 +102,7 @@ public sealed class ProjectRegistry(
 
             similar = [.. foreign
                 .GroupBy(scored => scored.Record.Project, ProjectIdentity.Comparer)
-                .Select(group => (Project: group.Key, Similarity: group.Max(scored => scored.Similarity ?? 0)))
+                .Select(group => new SimilarProject(group.Key, group.Max(scored => scored.Similarity ?? 0)))
                 .OrderByDescending(candidate => candidate.Similarity)
                 .Take(SimilarProjectLimit)];
 
@@ -122,7 +118,7 @@ public sealed class ProjectRegistry(
 
             if (await projects.GetAsync(ProjectIdentity.Key(seed), cancellationToken) is null)
             {
-                notes.Add(Messages.SeedProjectMissing(seed));
+                missing.Add(seed);
                 continue;
             }
 
@@ -139,7 +135,9 @@ public sealed class ProjectRegistry(
             .Select(group => group.First())
             .ToList();
 
-        return MemoryFormatter.RenderBriefing(similar, distinct, notes);
+        var wasAsked = !string.IsNullOrWhiteSpace(description) || Seeds(seedFrom).Any();
+
+        return new Briefing(wasAsked, similar, distinct, missing);
     }
 
     private static IEnumerable<string> Seeds(string seedFrom) =>

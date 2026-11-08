@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Snail.MCP.Memory.Tests.TestDoubles;
 
 namespace Snail.MCP.Memory.Tests.Application;
@@ -24,22 +25,27 @@ public sealed class RecordLifecycleTests : IDisposable
     {
         var answer = await _service.RememberAsync("ProjectA", "the stack is now SQLite", kind: "fact");
 
-        Assert.StartsWith("Recorded [fact] in project 'ProjectA'", answer);
+        Assert.True(answer.TryGet(out var remembered), answer.Error);
+        Assert.Equal(("fact", "ProjectA"), (remembered.Record.Kind, remembered.Record.Project));
+        Assert.Null(remembered.Replaced);
         Assert.NotNull(await _harness.Projects.GetAsync("projecta"));
         Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
     }
 
     /// The same knowledge twice is a duplicate: the second remember is refused with the
-    /// existing record quoted, and nothing is written.
+    /// existing record as the refusal's details, and nothing is written.
     [Fact]
     public async Task Remember_RefusesANearDuplicateAndQuotesTheExistingRecord()
     {
-        await _service.RememberAsync("ProjectA", "the very same knowledge");
+        var first = await _service.RememberAsync("ProjectA", "the very same knowledge");
 
-        var answer = await _service.RememberAsync("ProjectA", "the very same knowledge");
+        var answer = await _service.RememberAsync(
+            "ProjectA", "the very same knowledge", duplicateOf: scored => JsonValue.Create(scored.Record.Id.ToString()));
 
-        Assert.Contains("Not stored", answer);
-        Assert.Contains("replaceId", answer);
+        Assert.Equal(Refusals.Duplicate, answer.Type);
+        Assert.StartsWith("Not stored", answer.Error, StringComparison.Ordinal);
+        Assert.Contains("replaceId", answer.Hint, StringComparison.Ordinal);
+        Assert.Equal(first.Value!.Record.Id.ToString(), answer.Details!.GetValue<string>());
         Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
     }
 
@@ -63,7 +69,7 @@ public sealed class RecordLifecycleTests : IDisposable
         _harness.Time.Advance(TimeSpan.FromDays(10));
         var answer = await _service.RememberAsync("ProjectA", "new knowledge", replaceIdRaw: old.Id.ToString());
 
-        Assert.Contains("superseded", answer);
+        Assert.Equal(old.Id, answer.Value!.Replaced);
 
         var current = Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
 
@@ -78,7 +84,7 @@ public sealed class RecordLifecycleTests : IDisposable
     {
         var answer = await _service.RememberAsync("ProjectA", "knowledge", replaceIdRaw: "not-a-guid");
 
-        Assert.Equal(Messages.RecordIdInvalid("not-a-guid"), answer);
+        Refused.As(Refusals.InvalidId, Messages.RecordIdInvalid("not-a-guid"), answer);
     }
 
     [Fact]
@@ -87,11 +93,12 @@ public sealed class RecordLifecycleTests : IDisposable
         await _service.RememberAsync("ProjectA", "a lesson about LiteDB", kind: "lesson");
         await _service.RememberAsync("ProjectB", "another topic");
 
-        var answer = await _service.RecallAsync("a lesson about LiteDB");
+        var recall = (await _service.RecallAsync("a lesson about LiteDB")).Value!;
+        var found = Assert.Single(recall.Records);
 
-        Assert.Contains("[lesson]", answer);
-        Assert.Contains("ProjectA", answer);
-        Assert.Contains(Messages.ScopeWholeMemory, answer);
+        Assert.Equal(("lesson", "ProjectA"), (found.Record.Kind, found.Record.Project));
+        Assert.Equal("", recall.Project);
+        Assert.Equal(RecallSearch.Meaning, recall.Search);
     }
 
     /// FakeEmbedder gives the same text the same vector; the query prefix parity between
@@ -102,27 +109,28 @@ public sealed class RecordLifecycleTests : IDisposable
         await _service.RememberAsync("ProjectA", "shared knowledge");
         await _service.RememberAsync("ProjectB", "shared knowledge", force: true);
 
-        var answer = await _service.RecallAsync("shared knowledge", projectName: "ProjectB");
+        var recall = (await _service.RecallAsync("shared knowledge", projectName: "ProjectB")).Value!;
 
-        Assert.Contains("ProjectB", answer);
-        Assert.DoesNotContain("— ProjectA", answer);
+        Assert.All(recall.Records, scored => Assert.Equal("ProjectB", scored.Record.Project));
+        Assert.NotEmpty(recall.Records);
     }
 
     [Fact]
     public async Task Recall_UnknownProjectAnswersNotFound()
     {
-        Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.RecallAsync("q", "Ghost"));
+        Refused.As(Refusals.NotFound, Messages.ProjectNotFound("Ghost"), await _service.RecallAsync("q", "Ghost"));
     }
 
     [Fact]
-    public async Task Recall_EmptyQueryRendersTheOverview()
+    public async Task Recall_EmptyQueryAnswersTheOverviewCanonicalKindsFirst()
     {
+        await _service.RememberAsync("ProjectA", "a custom tag", kind: "idea");
         await _service.RememberAsync("ProjectA", "knowledge", kind: "fact");
 
-        var answer = await _service.RecallAsync(projectName: "ProjectA");
+        var recall = (await _service.RecallAsync(projectName: "ProjectA")).Value!;
 
-        Assert.StartsWith("# 📖 Overview: ProjectA", answer);
-        Assert.Contains("[fact]", answer);
+        Assert.Equal(RecallSearch.Overview, recall.Search);
+        Assert.Equal(["fact", "idea"], recall.Records.Select(scored => scored.Record.Kind));
     }
 
     [Fact]
@@ -135,10 +143,10 @@ public sealed class RecordLifecycleTests : IDisposable
             new KnowledgeGraph(_harness.Graph, _harness.Projects, _harness.Pending, _harness.Time), _harness.Time, 0.95, 0.5);
         await service.RememberAsync("ProjectA", "Архитектура сервера");
 
-        var answer = await service.RecallAsync("архитектура");
+        var recall = (await service.RecallAsync("архитектура")).Value!;
 
-        Assert.Contains(Messages.TextFallbackNote, answer);
-        Assert.Contains("Архитектура сервера", answer);
+        Assert.Equal(RecallSearch.Text, recall.Search);
+        Assert.Equal("Архитектура сервера", Assert.Single(recall.Records).Record.Content);
     }
 
     [Fact]
@@ -162,7 +170,7 @@ public sealed class RecordLifecycleTests : IDisposable
 
         var answer = await _service.ForgetAsync(string.Join(", ", ids));
 
-        Assert.Equal(Messages.RecordsForgotten(2), answer);
+        Assert.Equal(new Forgotten(2), answer.Value);
         Assert.Empty(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
     }
 
@@ -174,11 +182,11 @@ public sealed class RecordLifecycleTests : IDisposable
 
         var answer = await _service.ForgetAsync($"{id}, oops");
 
-        Assert.Equal(Messages.RecordIdInvalid("oops"), answer);
+        Refused.As(Refusals.InvalidId, Messages.RecordIdInvalid("oops"), answer);
         Assert.Single(await _harness.Records.ListAsync(new RecordFilter("projecta"), 10));
     }
 
-    /// The lazy purge rides on remember: an expired event disappears with a notice, durable
+    /// The lazy purge rides on remember: an expired event disappears and is counted, durable
     /// records of the same age stay.
     [Fact]
     public async Task Remember_PurgesExpiredEventsAndSaysSo()
@@ -189,7 +197,7 @@ public sealed class RecordLifecycleTests : IDisposable
         _harness.Time.Advance(TimeSpan.FromDays(100));
         var answer = await _service.RememberAsync("ProjectA", "new knowledge");
 
-        Assert.Contains(Messages.PurgeNotice(1).Trim(), answer);
+        Assert.Equal(1, answer.Value!.PurgedEvents);
 
         var kinds = (await _harness.Records.ListAsync(new RecordFilter("projecta"), 10)).Select(r => r.Kind);
 
@@ -207,7 +215,7 @@ public sealed class RecordLifecycleTests : IDisposable
         var answer = await _service.RememberAsync("ProjectA", "we build on it",
             links: [new RecordLink("ProjectB", LinkType.DependsOn, "runtime")]);
 
-        Assert.Contains(Messages.LinkCreated("ProjectA", LinkTypes.DependsOn, "ProjectB"), answer);
+        Assert.Equal(new Linked("ProjectA", LinkTypes.DependsOn, "ProjectB", IsCreated: true, 0), Assert.Single(answer.Value!.Links).Value);
         Assert.Single(await _harness.Graph.GetAllAsync());
         Assert.Empty(await _harness.Pending.ListAsync());
     }
@@ -222,7 +230,7 @@ public sealed class RecordLifecycleTests : IDisposable
         var answer = await _service.RememberAsync("ProjectA", "the very same knowledge",
             links: [new RecordLink("ProjectB", LinkType.Uses)]);
 
-        Assert.Contains("Not stored", answer);
+        Assert.Equal(Refusals.Duplicate, answer.Type);
         Assert.Empty(await _harness.Graph.GetAllAsync());
     }
 
@@ -235,14 +243,13 @@ public sealed class RecordLifecycleTests : IDisposable
 
         var answer = await _service.RememberAsync("ProjectA", "shares the parser with ProjectB");
 
-        Assert.Contains(Messages.PendingTitle, answer);
-        Assert.Contains("ProjectB", answer);
+        Assert.Equal("ProjectB", Assert.Single(answer.Value!.Proposed).Other);
 
         var overview = await _service.RecallAsync(projectName: "ProjectA");
-        Assert.Contains(Messages.PendingTitle, overview);
+        Assert.Single(overview.Value!.Pending);
 
         var queried = await _service.RecallAsync("parser", projectName: "ProjectA");
-        Assert.Contains(Messages.PendingTitle, queried);
+        Assert.Single(queried.Value!.Pending);
     }
 
     [Fact]
@@ -254,7 +261,7 @@ public sealed class RecordLifecycleTests : IDisposable
 
         var answer = await _service.RememberAsync("ProjectA", "again about ProjectB", force: true);
 
-        Assert.DoesNotContain(Messages.PendingTitle, answer);
+        Assert.Empty(answer.Value!.Proposed);
         Assert.Empty(await _harness.Pending.ListAsync());
     }
 
@@ -270,11 +277,10 @@ public sealed class RecordLifecycleTests : IDisposable
         _harness.Time.Advance(TimeSpan.FromDays(200));
         await _service.RecallAsync("recalled knowledge");
 
-        var answer = await _service.ReviewAsync("ProjectA");
+        var review = await _service.ReviewAsync("ProjectA");
 
-        Assert.Contains("forgotten knowledge", answer);
-        Assert.Contains("an old task", answer);
-        Assert.DoesNotContain("recalled knowledge", answer);
+        Assert.Equal("forgotten knowledge", Assert.Single(review.Stale).Content);
+        Assert.Equal("an old task", Assert.Single(review.Tasks).Content);
         Assert.Equal(3, (await _harness.Records.ListAsync(new RecordFilter("projecta"), 10)).Count);
     }
 }

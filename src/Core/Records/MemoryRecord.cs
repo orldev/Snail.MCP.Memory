@@ -30,4 +30,18 @@ public sealed record MemoryRecord
 
     /// <summary>How many times the record has appeared in recall results.</summary>
     public long AccessCount { get; init; }
+
+    /// <summary>A one-line handle of the record: its title, or the first 80 characters of its content.</summary>
+    public string Label
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Title))
+                return Title;
+
+            var snippet = Content.Trim().ReplaceLineEndings(" ");
+
+            return snippet.Length <= 80 ? snippet : $"{snippet[..80]}…";
+        }
+    }
 }

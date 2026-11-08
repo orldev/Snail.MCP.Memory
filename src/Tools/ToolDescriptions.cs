@@ -1,7 +1,11 @@
 namespace Snail.MCP.Memory.Tools;
 
 /// <summary>Description text of every tool and shared parameter.</summary>
-/// <remarks>These strings are the prompt: for a model with no other instructions they are the only manual.</remarks>
+/// <remarks>
+/// These strings are the prompt: for a model with no other instructions they are the only manual. Every tool answers in
+/// the envelope — <c>{"ok":true,"data":…}</c>, or <c>{"ok":false,"error":…,"hint":…,"type":…}</c> flagged as an error — so
+/// a description names the fields of <c>data</c> a model acts on and the <c>type</c> of a refusal it must handle.
+/// </remarks>
 public static class ToolDescriptions
 {
     /// <summary><c>init_project_memory</c>.</summary>
@@ -11,20 +15,24 @@ public static class ToolDescriptions
         "memory yet. Pass description — it is what finds the similar projects; pass seedFrom with " +
         "existing project names (joined by '+') to preload their experience explicitly. Without " +
         "projectName the server names the project after its working folder and refuses generic " +
-        "folders (src, projects, work, design).";
+        "folders (src, projects, work, design). The answer's data says whether the memory was " +
+        "created, carries the briefing (similarProjects, experience, notes) and the project's " +
+        "pending link suggestions: confirm each with link_projects or reject it with dismiss_link.";
 
     /// <summary><c>remember</c>.</summary>
     public const string Remember =
         "Stores one record into long-term memory. Call it by itself whenever something worth keeping " +
         "happens: a decision is made (kind 'decision'), a mistake is understood (kind 'lesson' — " +
         "what happened, why, how to avoid), a stable fact changes (kind 'fact'), the user states a " +
-        "preference (kind 'preference'). When the server answers that a very similar record exists, " +
-        "do not retry blindly: either supersede it (replaceId) or store anyway (force: true). When " +
+        "preference (kind 'preference'). The answer's data carries the new record's id. When the " +
+        "server refuses with type 'duplicate' — a very similar record exists, and it is the " +
+        "refusal's data — do not retry blindly: either supersede it (replaceId with its id) or " +
+        "store anyway (force: true). When " +
         "an existing record turned out wrong or outdated, replace it with replaceId instead of " +
         "adding a second opinion next to it. When the record itself reveals a relation to another " +
-        "project, pass links — the record and its edges land in one call. A mentioned project " +
-        "with no edge yet comes back as a pending link suggestion: confirm it with link_projects " +
-        "or reject it with dismiss_link, do not ignore it.";
+        "project, pass links — the record and its edges land in one call; each link answers what " +
+        "was made or why not. A mentioned project with no edge yet comes back in pending: confirm " +
+        "it with link_projects or reject it with dismiss_link, do not ignore it.";
 
     /// <summary><c>recall</c>.</summary>
     public const string Recall =
@@ -32,10 +40,11 @@ public static class ToolDescriptions
         "past decisions and lessons apply across projects, so leave projectName empty to search the " +
         "whole memory (that is the default that transfers experience); set it to restore the context " +
         "of one project. An empty query returns an overview of the newest records — use that to " +
-        "recover after a context reset. If a returned record is visibly wrong or outdated, fix the " +
+        "recover after a context reset. The answer's data lists the records with their ids, and a " +
+        "note when nothing was found. If a returned record is visibly wrong or outdated, fix the " +
         "memory immediately: remember with replaceId, or forget. A project-scoped recall also " +
         "lists the project's pending link suggestions until each is confirmed (link_projects) or " +
-        "rejected (dismiss_link).";
+        "rejected (dismiss_link); an unknown project is refused with type 'notFound'.";
 
     /// <summary><c>forget</c>.</summary>
     public const string Forget =
@@ -87,8 +96,8 @@ public static class ToolDescriptions
 
     /// <summary><c>get_graph</c>.</summary>
     public const string GetGraph =
-        "Renders the directed edges around the selected projects without loading any records. " +
-        "Empty projectName renders the whole graph.";
+        "Answers the directed edges around the selected projects (from, type, to, note) without " +
+        "loading any records. Empty projectName answers the whole graph.";
 
     /// <summary>Shared wording of the projectName parameter.</summary>
     public const string ProjectNameParam =

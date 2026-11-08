@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
+using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Extensions;
@@ -50,9 +51,11 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
+        /// <summary>The server with every tool of the assembly, a tool that throws answered in the envelope as every answer is.</summary>
         private IMcpServerBuilder AddMemoryServer() =>
             services
                 .AddMcpServer(server => server.ServerInfo = ServerIdentity.Of(typeof(ServiceCollectionExtensions).Assembly))
+                .ExplainFailures()
                 .WithToolsFromAssembly();
     }
 }

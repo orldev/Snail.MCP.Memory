@@ -1,7 +1,7 @@
 [
   {
     "name": "init_project_memory",
-    "description": "Initializes memory for a project and returns a briefing from related experience: similar projects, their decisions and lessons. Call it when starting work on a project that has no memory yet. Pass description \u2014 it is what finds the similar projects; pass seedFrom with existing project names (joined by \u0027\u002B\u0027) to preload their experience explicitly. Without projectName the server names the project after its working folder and refuses generic folders (src, projects, work, design).",
+    "description": "Initializes memory for a project and returns a briefing from related experience: similar projects, their decisions and lessons. Call it when starting work on a project that has no memory yet. Pass description \u2014 it is what finds the similar projects; pass seedFrom with existing project names (joined by \u0027\u002B\u0027) to preload their experience explicitly. Without projectName the server names the project after its working folder and refuses generic folders (src, projects, work, design). The answer\u0027s data says whether the memory was created, carries the briefing (similarProjects, experience, notes) and the project\u0027s pending link suggestions: confirm each with link_projects or reject it with dismiss_link.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -48,7 +48,7 @@
   },
   {
     "name": "remember",
-    "description": "Stores one record into long-term memory. Call it by itself whenever something worth keeping happens: a decision is made (kind \u0027decision\u0027), a mistake is understood (kind \u0027lesson\u0027 \u2014 what happened, why, how to avoid), a stable fact changes (kind \u0027fact\u0027), the user states a preference (kind \u0027preference\u0027). When the server answers that a very similar record exists, do not retry blindly: either supersede it (replaceId) or store anyway (force: true). When an existing record turned out wrong or outdated, replace it with replaceId instead of adding a second opinion next to it. When the record itself reveals a relation to another project, pass links \u2014 the record and its edges land in one call. A mentioned project with no edge yet comes back as a pending link suggestion: confirm it with link_projects or reject it with dismiss_link, do not ignore it.",
+    "description": "Stores one record into long-term memory. Call it by itself whenever something worth keeping happens: a decision is made (kind \u0027decision\u0027), a mistake is understood (kind \u0027lesson\u0027 \u2014 what happened, why, how to avoid), a stable fact changes (kind \u0027fact\u0027), the user states a preference (kind \u0027preference\u0027). The answer\u0027s data carries the new record\u0027s id. When the server refuses with type \u0027duplicate\u0027 \u2014 a very similar record exists, and it is the refusal\u0027s data \u2014 do not retry blindly: either supersede it (replaceId with its id) or store anyway (force: true). When an existing record turned out wrong or outdated, replace it with replaceId instead of adding a second opinion next to it. When the record itself reveals a relation to another project, pass links \u2014 the record and its edges land in one call; each link answers what was made or why not. A mentioned project with no edge yet comes back in pending: confirm it with link_projects or reject it with dismiss_link, do not ignore it.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -141,7 +141,7 @@
   },
   {
     "name": "recall",
-    "description": "Searches memory by meaning. Call it before proposing an architecture, a stack or a fix \u2014 past decisions and lessons apply across projects, so leave projectName empty to search the whole memory (that is the default that transfers experience); set it to restore the context of one project. An empty query returns an overview of the newest records \u2014 use that to recover after a context reset. If a returned record is visibly wrong or outdated, fix the memory immediately: remember with replaceId, or forget. A project-scoped recall also lists the project\u0027s pending link suggestions until each is confirmed (link_projects) or rejected (dismiss_link).",
+    "description": "Searches memory by meaning. Call it before proposing an architecture, a stack or a fix \u2014 past decisions and lessons apply across projects, so leave projectName empty to search the whole memory (that is the default that transfers experience); set it to restore the context of one project. An empty query returns an overview of the newest records \u2014 use that to recover after a context reset. The answer\u0027s data lists the records with their ids, and a note when nothing was found. If a returned record is visibly wrong or outdated, fix the memory immediately: remember with replaceId, or forget. A project-scoped recall also lists the project\u0027s pending link suggestions until each is confirmed (link_projects) or rejected (dismiss_link); an unknown project is refused with type \u0027notFound\u0027.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -402,7 +402,7 @@
   },
   {
     "name": "get_graph",
-    "description": "Renders the directed edges around the selected projects without loading any records. Empty projectName renders the whole graph.",
+    "description": "Answers the directed edges around the selected projects (from, type, to, note) without loading any records. Empty projectName answers the whole graph.",
     "inputSchema": {
       "type": "object",
       "properties": {

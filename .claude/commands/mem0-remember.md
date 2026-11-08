@@ -11,10 +11,10 @@ If the text starts with a project name, use it; otherwise use the current projec
 
 Pick the `kind` from the canonical core — `fact` (current state of things), `decision` (what was chosen and why), `lesson` (a mistake: what happened, why, how to avoid), `preference` (how I like things done), `reference` (external URL or ticket), `task` (a work item), `event` (something that happened, expires with time), `note` (anything else).
 
-Call `remember` ONCE. If the server answers that a very similar record exists, decide: the old record is outdated — call `remember` again with `replaceId`; both are needed — call `remember` again with `force: true`; nothing new — stop.
+Call `remember` ONCE. If the server refuses with `"type":"duplicate"` — a very similar record exists, and it is the answer's `data` — decide: the old record is outdated — call `remember` again with `replaceId`; both are needed — call `remember` again with `force: true`; nothing new — stop.
 
 Use MCP tools exclusively — no bash, no reading files. Answer with one line and nothing else, in the language I write in:
 
-"Recorded [kind] (id ...)."
+"Recorded [kind] (id ...)." — the kind and id of the answer's `data`.
 
 If the server refused because of a similar record and you stopped, say what exists instead.

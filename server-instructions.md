@@ -2,13 +2,15 @@ Universal long-term memory: typed records searched by meaning, plus a directed k
 
 LANGUAGE. Kinds, edge types, ids — English; record content — the conversation's language.
 
-RECORDS. remember with a kind: fact, decision, lesson (what happened, why, how to avoid), preference, reference, task, event (expires by age), note. One true value: on a similar-record warning — supersede (replaceId), store anyway (force: true), or stop; when knowledge changes, replace the old record, never add a second opinion. Fix or forget wrong records on sight.
+RECORDS. remember with a kind: fact, decision, lesson (what happened, why, how to avoid), preference, reference, task, event (expires by age), note. One true value: on a duplicate refusal (type duplicate, the similar record as data) — supersede (replaceId), store anyway (force: true), or stop; when knowledge changes, replace the old record, never add a second opinion. Fix or forget wrong records on sight.
 
 RECALL. Empty projectName searches the whole memory — use it before proposing an architecture, stack or fix. projectName with an empty query returns the overview — the context-restore call.
 
 GRAPH. Directed edges, closed types: uses, depends_on, design_of, part_of, implements, documents. Similarity is not an edge — recall derives it. A relation visible in a record: pass links to remember — record and edges in one call. Machine-extracted relations (a manifest, Obsidian wiki-links, an XML registry): sync_project_links — auto edges that never overwrite manual ones; gone from the source means marked stale, never deleted.
 
 PENDING. A record mentioning a known but unlinked project queues a suggestion; it returns with every project-scoped recall and init until resolved: link_projects confirms (pick type and direction), dismiss_link rejects permanently. No third state — resolve on sight. A background audit backfills mentions older than the mentioned project.
+
+ANSWERS. Every answer is JSON with an ok flag: data on success; on ok false read error and hint, type names the refusal (notFound, duplicate, invalidId, …) — change the call instead of repeating it.
 
 LIFECYCLE. Only event expires by itself. review_memory nominates stale records; confirm with the user, then forget. Deletion is permanent.
 

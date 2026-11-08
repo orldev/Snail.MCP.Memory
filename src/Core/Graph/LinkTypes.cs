@@ -26,18 +26,6 @@ public static class LinkTypes
     public static readonly IReadOnlyList<string> All =
         [Uses, DependsOn, DesignOf, PartOf, Implements, Documents];
 
-    /// <summary>Human-readable wording used when an edge is rendered.</summary>
-    public static string Describe(string type) => type switch
-    {
-        Uses => "uses",
-        DependsOn => "depends on",
-        DesignOf => "design of",
-        PartOf => "part of",
-        Implements => "implements",
-        Documents => "documents",
-        _ => type
-    };
-
     /// <summary>Normalizes user input to a canonical type; <c>false</c> means the caller must report the allowed list.</summary>
     public static bool TryNormalize(string? raw, out string type)
     {

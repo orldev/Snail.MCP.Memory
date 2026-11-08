@@ -2,7 +2,7 @@
 
 ## <code>init_<wbr>project_<wbr>memory</code>
 
-Initializes memory for a project and returns a briefing from related experience: similar projects, their decisions and lessons. Call it when starting work on a project that has no memory yet. Pass description — it is what finds the similar projects; pass seedFrom with existing project names (joined by '+') to preload their experience explicitly. Without projectName the server names the project after its working folder and refuses generic folders (src, projects, work, design).
+Initializes memory for a project and returns a briefing from related experience: similar projects, their decisions and lessons. Call it when starting work on a project that has no memory yet. Pass description — it is what finds the similar projects; pass seedFrom with existing project names (joined by '+') to preload their experience explicitly. Without projectName the server names the project after its working folder and refuses generic folders (src, projects, work, design). The answer's data says whether the memory was created, carries the briefing (similarProjects, experience, notes) and the project's pending link suggestions: confirm each with link_projects or reject it with dismiss_link.
 
 *only adds · every call adds · stays on this machine.*
 
@@ -68,7 +68,7 @@ Lists the projects that have memory. Call it before guessing how a project was n
 
 ## <code>remember</code>
 
-Stores one record into long-term memory. Call it by itself whenever something worth keeping happens: a decision is made (kind 'decision'), a mistake is understood (kind 'lesson' — what happened, why, how to avoid), a stable fact changes (kind 'fact'), the user states a preference (kind 'preference'). When the server answers that a very similar record exists, do not retry blindly: either supersede it (replaceId) or store anyway (force: true). When an existing record turned out wrong or outdated, replace it with replaceId instead of adding a second opinion next to it. When the record itself reveals a relation to another project, pass links — the record and its edges land in one call. A mentioned project with no edge yet comes back as a pending link suggestion: confirm it with link_projects or reject it with dismiss_link, do not ignore it.
+Stores one record into long-term memory. Call it by itself whenever something worth keeping happens: a decision is made (kind 'decision'), a mistake is understood (kind 'lesson' — what happened, why, how to avoid), a stable fact changes (kind 'fact'), the user states a preference (kind 'preference'). The answer's data carries the new record's id. When the server refuses with type 'duplicate' — a very similar record exists, and it is the refusal's data — do not retry blindly: either supersede it (replaceId with its id) or store anyway (force: true). When an existing record turned out wrong or outdated, replace it with replaceId instead of adding a second opinion next to it. When the record itself reveals a relation to another project, pass links — the record and its edges land in one call; each link answers what was made or why not. A mentioned project with no edge yet comes back in pending: confirm it with link_projects or reject it with dismiss_link, do not ignore it.
 
 *may overwrite or delete · every call adds · stays on this machine.*
 
@@ -175,7 +175,7 @@ Stores one record into long-term memory. Call it by itself whenever something wo
 
 ## <code>recall</code>
 
-Searches memory by meaning. Call it before proposing an architecture, a stack or a fix — past decisions and lessons apply across projects, so leave projectName empty to search the whole memory (that is the default that transfers experience); set it to restore the context of one project. An empty query returns an overview of the newest records — use that to recover after a context reset. If a returned record is visibly wrong or outdated, fix the memory immediately: remember with replaceId, or forget. A project-scoped recall also lists the project's pending link suggestions until each is confirmed (link_projects) or rejected (dismiss_link).
+Searches memory by meaning. Call it before proposing an architecture, a stack or a fix — past decisions and lessons apply across projects, so leave projectName empty to search the whole memory (that is the default that transfers experience); set it to restore the context of one project. An empty query returns an overview of the newest records — use that to recover after a context reset. The answer's data lists the records with their ids, and a note when nothing was found. If a returned record is visibly wrong or outdated, fix the memory immediately: remember with replaceId, or forget. A project-scoped recall also lists the project's pending link suggestions until each is confirmed (link_projects) or rejected (dismiss_link); an unknown project is refused with type 'notFound'.
 
 *only adds · every call adds · stays on this machine.*
 

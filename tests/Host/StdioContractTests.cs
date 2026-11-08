@@ -68,10 +68,24 @@ public class StdioContractTests
             arguments = new { projectName = "StdioProbe" },
         });
 
-        var overview = read.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!;
+        var overview = Envelope(read);
+        var record = overview.GetProperty("data").GetProperty("records")[0];
 
-        Assert.True(overview.Contains("[fact]") && overview.Contains("the stack is .NET"),
-            $"recall did not return the stored record. Answer:\n{overview}\nstderr:\n{session.StderrText}");
+        Assert.True(overview.GetProperty("ok").GetBoolean(), $"recall failed: {overview}\nstderr:\n{session.StderrText}");
+        Assert.Equal("fact", record.GetProperty("kind").GetString());
+        Assert.Equal("the stack is .NET", record.GetProperty("content").GetString());
+
+        var unknown = await session.CallAsync(8, "tools/call", new
+        {
+            name = "recall",
+            arguments = new { projectName = "NoSuchProject" },
+        });
+        var refusal = Envelope(unknown);
+
+        Assert.True(unknown.GetProperty("result").GetProperty("isError").GetBoolean(), "a refusal must be flagged isError");
+        Assert.False(refusal.GetProperty("ok").GetBoolean());
+        Assert.Equal("notFound", refusal.GetProperty("type").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(refusal.GetProperty("hint").GetString()));
 
         await session.CallAsync(6, "tools/call", new
         {
@@ -94,6 +108,10 @@ public class StdioContractTests
         Assert.All(session.StdoutLines, line => Assert.Equal("2.0", session.ParseOrFail(line).GetProperty("jsonrpc").GetString()));
         Assert.True(session.HasDataDirectoryContent, "the configured data directory stayed empty — configuration did not reach the store");
     }
+
+    /// <summary>The envelope a tool answers with: the text of its first content block, parsed.</summary>
+    private static JsonElement Envelope(JsonElement response) =>
+        JsonDocument.Parse(response.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!).RootElement;
 
     /// <summary>Tools are discovered by the SDK through attributes, so a misconfigured attribute is invisible to reflection-only guards.</summary>
     private static HashSet<string> ToolNamesOfAssembly()

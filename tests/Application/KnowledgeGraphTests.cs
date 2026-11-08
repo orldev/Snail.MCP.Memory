@@ -2,7 +2,7 @@ using Snail.MCP.Memory.Tests.TestDoubles;
 
 namespace Snail.MCP.Memory.Tests.Application;
 
-/// Linking rules and graph rendering over a real database.
+/// Linking rules and graph reading over a real database.
 public sealed class KnowledgeGraphTests : IDisposable
 {
     private readonly MemoryHarness _harness = new();
@@ -24,8 +24,8 @@ public sealed class KnowledgeGraphTests : IDisposable
     {
         await Register("A", "B");
 
-        Assert.Equal(Messages.LinkCreated("A", LinkTypes.Uses, "B"), await _service.LinkAsync("A", "B", LinkTypes.Uses));
-        Assert.Equal(Messages.LinkUpdated("A", LinkTypes.Uses, "B"), await _service.LinkAsync("A", "B", LinkTypes.Uses, "note"));
+        Assert.Equal(new Linked("A", LinkTypes.Uses, "B", IsCreated: true, 0), (await _service.LinkAsync("A", "B", LinkTypes.Uses)).Value);
+        Assert.Equal(new Linked("A", LinkTypes.Uses, "B", IsCreated: false, 0), (await _service.LinkAsync("A", "B", LinkTypes.Uses, "note")).Value);
     }
 
     /// An edge to a project that has no memory is a phantom node; both ends must exist.
@@ -34,15 +34,15 @@ public sealed class KnowledgeGraphTests : IDisposable
     {
         await Register("A");
 
-        Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.LinkAsync("A", "Ghost", LinkTypes.Uses));
+        Refused.As(Refusals.NotFound, Messages.ProjectNotFound("Ghost"), await _service.LinkAsync("A", "Ghost", LinkTypes.Uses));
         Assert.Empty(await _harness.Graph.GetAllAsync());
     }
 
     [Fact]
     public async Task Link_RefusesSelfAndEmptyEnds()
     {
-        Assert.Equal(Messages.SelfLinkForbidden, await _service.LinkAsync("A", "a", LinkTypes.Uses));
-        Assert.Equal(Messages.BothProjectsRequired, await _service.LinkAsync("A", " ", LinkTypes.Uses));
+        Refused.As(Refusals.SelfLink, Messages.SelfLinkForbidden, await _service.LinkAsync("A", "a", LinkTypes.Uses));
+        Refused.As(Refusals.EmptyName, Messages.BothProjectsRequired, await _service.LinkAsync("A", " ", LinkTypes.Uses));
     }
 
     [Fact]
@@ -52,29 +52,32 @@ public sealed class KnowledgeGraphTests : IDisposable
         await _service.LinkAsync("A", "B", LinkTypes.Uses);
         await _service.LinkAsync("B", "A", LinkTypes.Documents);
 
-        Assert.Equal(Messages.UnknownLinkType("inspired_by", LinkTypes.AllowedList()),
-            await _service.UnlinkAsync("A", "B", "inspired_by"));
-        Assert.Equal(Messages.LinksRemoved(1, "A", "B"), await _service.UnlinkAsync("A", "B", LinkTypes.Documents));
-        Assert.Equal(Messages.LinksRemoved(1, "A", "B"), await _service.UnlinkAsync("A", "B"));
-        Assert.Equal(Messages.NoLinksBetween("A", "B"), await _service.UnlinkAsync("A", "B"));
+        var invented = await _service.UnlinkAsync("A", "B", "inspired_by");
+
+        Refused.As(Refusals.UnknownLinkType, Messages.UnknownLinkType("inspired_by"), invented);
+        Assert.Contains(LinkTypes.DependsOn, invented.Hint, StringComparison.Ordinal);
+        Assert.Equal(new Unlinked("A", "B", LinkTypes.Documents, 1), (await _service.UnlinkAsync("A", "B", LinkTypes.Documents)).Value);
+        Assert.Equal(1, (await _service.UnlinkAsync("A", "B")).Value!.Removed);
+        Assert.Equal(0, (await _service.UnlinkAsync("A", "B")).Value!.Removed);
     }
 
     [Fact]
-    public async Task Render_WholeGraphAndEmptyGraph()
+    public async Task Read_WholeGraphAndEmptyGraph()
     {
-        Assert.Contains(Messages.GraphEmpty, await _service.RenderAsync());
+        Assert.Empty((await _service.ReadAsync()).Edges);
 
         await Register("A", "B");
         await _service.LinkAsync("A", "B", LinkTypes.Uses, "runtime");
 
-        var rendered = await _service.RenderAsync();
+        var whole = await _service.ReadAsync();
+        var edge = Assert.Single(whole.Edges);
 
-        Assert.Contains(Messages.WholeGraphTitle, rendered);
-        Assert.Contains("| A | uses | B | runtime |", rendered);
+        Assert.Empty(whole.Roots);
+        Assert.Equal(("A", LinkTypes.Uses, "B", "runtime"), (edge.Source, edge.Type, edge.Target, edge.Note));
     }
 
     /// Confirming an edge settles the pair's suggestion — the queue empties and the answer
-    /// says so.
+    /// counts it.
     [Fact]
     public async Task Link_ResolvesThePendingSuggestionOfThePair()
     {
@@ -83,7 +86,7 @@ public sealed class KnowledgeGraphTests : IDisposable
 
         var answer = await _service.LinkAsync("A", "B", LinkTypes.Uses);
 
-        Assert.Equal(Messages.LinkCreated("A", LinkTypes.Uses, "B") + Messages.PendingResolved(1), answer);
+        Assert.Equal(1, answer.Value!.PendingResolved);
         Assert.Empty(await _harness.Pending.ListAsync());
     }
 
@@ -93,9 +96,9 @@ public sealed class KnowledgeGraphTests : IDisposable
         await Register("A", "B");
         await _harness.Pending.TryProposeAsync(new PendingLink("A", "B", "", _harness.Time.GetUtcNow()));
 
-        Assert.Equal(Messages.ProjectNotFound("Ghost"), await _service.DismissAsync("A", "Ghost"));
-        Assert.Equal(Messages.SelfLinkForbidden, await _service.DismissAsync("A", "a"));
-        Assert.Equal(Messages.LinkDismissed("A", "B"), await _service.DismissAsync("A", "B"));
+        Refused.As(Refusals.NotFound, Messages.ProjectNotFound("Ghost"), await _service.DismissAsync("A", "Ghost"));
+        Refused.As(Refusals.SelfLink, Messages.SelfLinkForbidden, await _service.DismissAsync("A", "a"));
+        Assert.Equal(new Dismissed("A", "B"), (await _service.DismissAsync("A", "B")).Value);
         Assert.Empty(await _harness.Pending.ListAsync());
     }
 
@@ -128,8 +131,8 @@ public sealed class KnowledgeGraphTests : IDisposable
         var answer = await _service.SyncAsync("A",
             [new RecordLink("B", LinkType.DependsOn), new RecordLink("Ghost", LinkType.Uses)], "csproj");
 
-        Assert.Contains(Messages.SyncSummary("csproj", "A", 1, 0, 0, 0), answer);
-        Assert.Contains(Messages.SyncSkipped("Ghost"), answer);
+        Assert.Equal((1, 0, 0, 0), Counts(answer));
+        Assert.Equal(["Ghost"], answer.Value!.Skipped);
         Assert.Equal(Messages.AutoNote("csproj"), Assert.Single(await _harness.Graph.GetAllAsync()).Note);
         Assert.Empty(await _harness.Pending.ListAsync());
     }
@@ -145,7 +148,7 @@ public sealed class KnowledgeGraphTests : IDisposable
 
         var second = await _service.SyncAsync("A", [new RecordLink("B", LinkType.Uses)], "obsidian");
 
-        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 0, 1, 1), second);
+        Assert.Equal((0, 0, 1, 1), Counts(second));
 
         var edges = await _harness.Graph.GetAllAsync();
 
@@ -154,7 +157,7 @@ public sealed class KnowledgeGraphTests : IDisposable
 
         var third = await _service.SyncAsync("A", [new RecordLink("B", LinkType.Uses)], "obsidian");
 
-        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 0, 1, 0), third);
+        Assert.Equal((0, 0, 1, 0), Counts(third));
     }
 
     /// A relation that returns to the source clears the stale marker: the refresh rewrites the
@@ -168,20 +171,27 @@ public sealed class KnowledgeGraphTests : IDisposable
 
         var answer = await _service.SyncAsync("A", [new RecordLink("C", LinkType.DependsOn)], "obsidian");
 
-        Assert.Contains(Messages.SyncSummary("obsidian", "A", 0, 1, 0, 0), answer);
+        Assert.Equal((0, 1, 0, 0), Counts(answer));
         Assert.Equal(Messages.AutoNote("obsidian"), Assert.Single(await _harness.Graph.GetAllAsync()).Note);
     }
 
     /// Depth expands through neighbors: from A with depth 2 the far edge B→C becomes visible,
     /// with depth 1 it does not.
     [Fact]
-    public async Task Render_ExpandsByDepth()
+    public async Task Read_ExpandsByDepth()
     {
         await Register("A", "B", "C");
         await _service.LinkAsync("A", "B", LinkTypes.Uses);
         await _service.LinkAsync("B", "C", LinkTypes.Uses);
 
-        Assert.DoesNotContain("| B | uses | C |", await _service.RenderAsync("A", depth: 1));
-        Assert.Contains("| B | uses | C |", await _service.RenderAsync("A", depth: 2));
+        Assert.DoesNotContain((await _service.ReadAsync("A", depth: 1)).Edges, edge => edge.Source == "B" && edge.Target == "C");
+        Assert.Contains((await _service.ReadAsync("A", depth: 2)).Edges, edge => edge.Source == "B" && edge.Target == "C");
+    }
+
+    private static (int Created, int Refreshed, int Kept, int Stale) Counts(Answer<Synced> answer)
+    {
+        Assert.True(answer.TryGet(out var synced), answer.Error);
+
+        return (synced.Created, synced.Refreshed, synced.Kept, synced.Stale);
     }
 }

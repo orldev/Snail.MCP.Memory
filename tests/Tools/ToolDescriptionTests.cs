@@ -39,7 +39,7 @@ public sealed class ToolDescriptionTests
     public void ListProjects_LeavesThePrefixOptionalAsTheDescriptionPromises()
     {
         var prefix = typeof(ProjectMemoryTools)
-            .GetMethod(nameof(ProjectMemoryTools.ListProjects))!
+            .GetMethod(nameof(ProjectMemoryTools.ListProjectsAsync))!
             .GetParameters().Single(p => p.Name == "prefix");
 
         Assert.True(prefix.IsOptional);
@@ -53,7 +53,7 @@ public sealed class ToolDescriptionTests
     public void Recall_LeavesQueryAndProjectNameOptional()
     {
         var parameters = typeof(ProjectMemoryTools)
-            .GetMethod(nameof(ProjectMemoryTools.Recall))!
+            .GetMethod(nameof(ProjectMemoryTools.RecallAsync))!
             .GetParameters();
 
         Assert.True(parameters.Single(p => p.Name == "query").IsOptional);
@@ -89,17 +89,21 @@ public sealed class ToolDescriptionTests
     }
 
     /// The atomic form must stay optional — a required links array would break every plain
-    /// remember call — and the queue's own hint has to name the only two ways out of it.
+    /// remember call — and the descriptions of the tools that answer the queue have to name the
+    /// only two ways out of it, since the answer carries the suggestions alone.
     [Fact]
-    public void Remember_LeavesLinksOptionalAndThePendingHintNamesBothResolutions()
+    public void Remember_LeavesLinksOptionalAndTheQueueIsTold_BothResolutions()
     {
         var links = typeof(ProjectMemoryTools)
-            .GetMethod(nameof(ProjectMemoryTools.Remember))!
+            .GetMethod(nameof(ProjectMemoryTools.RememberAsync))!
             .GetParameters().Single(p => p.Name == "links");
 
         Assert.True(links.IsOptional);
-        Assert.Contains("link_projects", Messages.PendingHint);
-        Assert.Contains("dismiss_link", Messages.PendingHint);
+        Assert.All([ToolDescriptions.Remember, ToolDescriptions.Recall, ToolDescriptions.InitProjectMemory], description =>
+        {
+            Assert.Contains("link_projects", description, StringComparison.Ordinal);
+            Assert.Contains("dismiss_link", description, StringComparison.Ordinal);
+        });
     }
 
     /// Services and the clock are injected by the host and never reach the schema; the rest

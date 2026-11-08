@@ -12,7 +12,7 @@ public sealed class ToolSchemaTests
     [Fact]
     public void LinkProjects_TypeIsAStringEnumOfEveryAllowedType()
     {
-        var schema = InputSchemaOf(nameof(KnowledgeGraphTools.LinkProjects));
+        var schema = InputSchemaOf(nameof(KnowledgeGraphTools.LinkProjectsAsync));
         var type = schema.GetProperty("properties").GetProperty("type");
         var values = type.GetProperty("enum").EnumerateArray().Select(v => v.GetString()).ToHashSet();
 
@@ -26,7 +26,7 @@ public sealed class ToolSchemaTests
     [InlineData("co_access")]
     public void LinkProjects_EnumDoesNotAcceptTheRetiredTypes(string retired)
     {
-        var type = InputSchemaOf(nameof(KnowledgeGraphTools.LinkProjects))
+        var type = InputSchemaOf(nameof(KnowledgeGraphTools.LinkProjectsAsync))
             .GetProperty("properties").GetProperty("type");
 
         Assert.DoesNotContain(retired, type.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
@@ -47,7 +47,7 @@ public sealed class ToolSchemaTests
     [Fact]
     public void Remember_LinkTypeInsideLinksIsTheSameStringEnum()
     {
-        var schema = McpServerTool.Create(typeof(ProjectMemoryTools).GetMethod(nameof(ProjectMemoryTools.Remember))!)
+        var schema = McpServerTool.Create(typeof(ProjectMemoryTools).GetMethod(nameof(ProjectMemoryTools.RememberAsync))!)
             .ProtocolTool.InputSchema;
         var links = schema.GetProperty("properties").GetProperty("links");
         var type = ItemsOf(links).GetProperty("properties").GetProperty("type");
