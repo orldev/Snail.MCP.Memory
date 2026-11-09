@@ -59,6 +59,16 @@
           "isRequired": false
         },
         {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL",
+          "description": "Where the ONNX model is downloaded from when missing. Default: multilingual-e5-small on Hugging Face.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL",
+          "description": "Where the SentencePiece tokenizer is downloaded from when missing. Default: multilingual-e5-small on Hugging Face.",
+          "isRequired": false
+        },
+        {
           "name": "SNAIL_MCP_MEMORY_EMBEDDING_DIMENSIONS",
           "description": "Vector length of the configured model. Default: 384.",
           "isRequired": false,
@@ -112,6 +122,17 @@
           "value": "Http"
         },
         {
+          "name": "SNAIL_MCP_MEMORY_URL",
+          "description": "Where the HTTP server listens, on loopback only: an address beyond loopback is refused at start. Default: http://127.0.0.1:9230.",
+          "isRequired": false,
+          "default": "http://127.0.0.1:9230"
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_PORT",
+          "description": "A port alone: the server listens on that port of the URL's host.",
+          "isRequired": false
+        },
+        {
           "name": "SNAIL_MCP_MEMORY_PROVIDER",
           "description": "Storage backend: Sqlite - single-file database with sqlite-vec (default), Postgres - PostgreSQL with pgvector.",
           "isRequired": false,
@@ -154,6 +175,16 @@
         {
           "name": "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_PATH",
           "description": "Path of the SentencePiece tokenizer. Default: {Directory}/models/sentencepiece.bpe.model, downloaded on first use.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_MODEL_URL",
+          "description": "Where the ONNX model is downloaded from when missing. Default: multilingual-e5-small on Hugging Face.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_MEMORY_EMBEDDING_TOKENIZER_URL",
+          "description": "Where the SentencePiece tokenizer is downloaded from when missing. Default: multilingual-e5-small on Hugging Face.",
           "isRequired": false
         },
         {

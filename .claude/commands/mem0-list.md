@@ -9,4 +9,4 @@ List projects in memory: $ARGUMENTS
 
 With no arguments call `list_projects` once, with no prefix at all — that lists every project. Do not invent a prefix and do not guess one from the current folder. With an argument, pass it as `prefix`.
 
-Use MCP tools exclusively — no bash, no reading files. The server answers JSON: print each project of `data.projects` as one line, `- **name** · created — description` (no dash part without a description), then `Total: <data.count>.`; with no projects print `data.note`. Add nothing to it — no comments, no guesses about what a project is.
+Use MCP tools exclusively — no bash, no reading files. The server answers JSON: print each project of `data.projects` as one line, `- **name** · created — description` (no dash part without a description), then `Total: <data.count>.`; with no projects print `data.note`. Add nothing to it — no comments, no guesses about what a project is. If the answer has `"ok":false`, print its `error` verbatim instead.

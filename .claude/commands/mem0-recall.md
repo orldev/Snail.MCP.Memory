@@ -15,3 +15,5 @@ Call `recall` EXACTLY ONCE:
 Use MCP tools exclusively — no bash, no reading files. Answer with one line and nothing else, in the language I write in:
 
 "Context loaded. Ready."
+
+If the answer has `"ok":false` — a project memory does not know, a malformed call — print its `error` verbatim instead.
