@@ -106,6 +106,20 @@ public sealed class ToolDescriptionTests
         });
     }
 
+    /// The description promises that a call without confirm deletes nothing; a confirm that defaulted to true, or lost
+    /// its default, would turn the count the user is asked about into the deletion itself.
+    [Fact]
+    public void ForgetProject_DeletesNothingUnlessConfirmed()
+    {
+        var confirm = typeof(ProjectMemoryTools)
+            .GetMethod(nameof(ProjectMemoryTools.ForgetProjectAsync))!
+            .GetParameters().Single(p => p.Name == "confirm");
+
+        Assert.True(confirm.IsOptional);
+        Assert.Equal(false, confirm.DefaultValue);
+        Assert.Contains("without confirm it deletes nothing", ToolDescriptions.ForgetProject, StringComparison.Ordinal);
+    }
+
     /// Services and the clock are injected by the host and never reach the schema; the rest
     /// are arguments the model has to fill in blind.
     private static bool IsModelFacing(ParameterInfo parameter) =>

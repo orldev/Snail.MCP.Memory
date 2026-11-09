@@ -18,4 +18,8 @@ public interface IPendingLinkStore
 
     /// <summary>Rewrites a project name on every suggestion touching it; returns how many changed.</summary>
     Task<int> RenameProjectAsync(string oldKey, string newName, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes every suggestion touching the project, the dismissed ones too; returns how many there were.</summary>
+    /// <remarks>A dismissal is kept so a pair is never suggested again; once the project is gone the pair is gone with it.</remarks>
+    Task<int> RemoveProjectAsync(string projectKey, CancellationToken cancellationToken = default);
 }

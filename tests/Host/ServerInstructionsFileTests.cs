@@ -37,6 +37,14 @@ public sealed class ServerInstructionsFileTests
         Assert.Contains("sync_project_links", Text);
     }
 
+    /// A whole project is the largest deletion there is; the instructions must say it is the user's call and takes a confirmation.
+    [Fact]
+    public void Instructions_SayAProjectIsForgottenOnlyWhenConfirmed()
+    {
+        Assert.Contains("forget_project", Text, StringComparison.Ordinal);
+        Assert.Contains("confirm: true", Text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Instructions_NameEveryShippedCommand()
     {

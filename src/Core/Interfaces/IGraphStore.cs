@@ -17,4 +17,7 @@ public interface IGraphStore
 
     /// <summary>Rewrites a project name on every edge touching it; returns how many edges changed.</summary>
     Task<int> RenameProjectAsync(string oldKey, string newName, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes every edge touching the project, in either direction; returns how many there were.</summary>
+    Task<int> RemoveProjectAsync(string projectKey, CancellationToken cancellationToken = default);
 }

@@ -114,6 +114,16 @@ public sealed class EfPendingLinkStore(MemoryDb database, string workspace) : IP
         return changed;
     }
 
+    /// <inheritdoc />
+    public async Task<int> RemoveProjectAsync(string projectKey, CancellationToken cancellationToken = default)
+    {
+        await using var context = await database.CreateAsync(cancellationToken);
+
+        return await Scoped(context)
+            .Where(row => row.ProjectKey == projectKey || row.OtherKey == projectKey)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     private IQueryable<PendingLinkRow> Scoped(MemoryDbContext context) =>
         workspace.Length == 0 ? context.PendingLinks : context.PendingLinks.Where(row => row.Workspace == workspace);
 

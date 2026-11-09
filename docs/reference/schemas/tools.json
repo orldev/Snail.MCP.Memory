@@ -175,7 +175,7 @@
   },
   {
     "name": "forget",
-    "description": "Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk cleanups confirm the list with the user first \u2014 review_memory nominates candidates.",
+    "description": "Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk cleanups confirm the list with the user first \u2014 review_memory nominates candidates. A whole project goes with forget_project.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -230,6 +230,32 @@
       "required": [
         "oldName",
         "newName"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "forget_project",
+    "description": "Forgets a whole project: every record, every graph edge touching it in either direction, its link suggestions (the dismissed ones too) and its registration. Permanent, so it takes two calls: without confirm it deletes nothing and answers the counts; show them to the user, and only once they agree call again with confirm: true. Only ever on the user\u0027s request \u2014 an outdated record is replaced or forgotten, never its project.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectName": {
+          "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive.",
+          "type": "string"
+        },
+        "confirm": {
+          "description": "False \u2014 count what would be deleted and delete nothing. True \u2014 delete, after the user agreed to the counts.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "projectName"
       ]
     },
     "annotations": {

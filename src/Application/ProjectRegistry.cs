@@ -3,7 +3,7 @@ using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Memory.Application;
 
-/// <summary>Project registry operations: init with the experience briefing, listing, renaming.</summary>
+/// <summary>Project registry operations: init with the experience briefing, listing, renaming, forgetting.</summary>
 /// <remarks>Init embeds the description and asks the whole memory "where have I seen this before?"; <c>seedFrom</c> pulls named donors instead.</remarks>
 public sealed class ProjectRegistry(
     IProjectStore projects,
@@ -80,6 +80,41 @@ public sealed class ProjectRegistry(
         await pending.RenameProjectAsync(oldKey, newProject, cancellationToken);
 
         return Answer.Ok(new Renamed(oldProject, newProject, movedRecords, movedEdges));
+    }
+
+    /// <summary>Forgets a project whole — its records, edges, link suggestions and registration — or, unconfirmed, counts what that deletes.</summary>
+    /// <remarks>
+    /// Deletion is permanent and takes a whole project at once, so it is asked twice: the first call only counts, for
+    /// the user to agree to the numbers. The registration goes last, so a deletion cut short still finds the project
+    /// and the next call finishes it. A project known only by its records or edges is forgotten too.
+    /// </remarks>
+    public async Task<Answer<ProjectForgotten>> ForgetAsync(
+        string projectName, bool isConfirmed, CancellationToken cancellationToken = default)
+    {
+        var project = ProjectIdentity.Normalize(projectName);
+
+        if (project.Length == 0)
+            return Answer.Failed(Messages.ProjectNameEmpty, Messages.ProjectNameEmptyHint, Refusals.EmptyName);
+
+        var key = ProjectIdentity.Key(project);
+        var registered = await projects.GetAsync(key, cancellationToken);
+        var stored = await records.ListAsync(new RecordFilter(key), int.MaxValue, cancellationToken);
+        var edges = await graph.GetForProjectsAsync([key], cancellationToken);
+        var suggestions = await pending.ListAsync(key, cancellationToken);
+        var name = registered?.Name ?? project;
+
+        if (registered is null && stored.Count == 0 && edges.Count == 0 && suggestions.Count == 0)
+            return Answer.Failed(Messages.ProjectNotFound(project), Messages.ProjectNotFoundHint, Refusals.NotFound);
+
+        if (!isConfirmed)
+            return Answer.Ok(new ProjectForgotten(name, false, stored.Count, edges.Count, suggestions.Count));
+
+        await pending.RemoveProjectAsync(key, cancellationToken);
+        var removedEdges = await graph.RemoveProjectAsync(key, cancellationToken);
+        var removedRecords = await records.DeleteProjectAsync(key, cancellationToken);
+        await projects.TryDeleteAsync(key, cancellationToken);
+
+        return Answer.Ok(new ProjectForgotten(name, true, removedRecords, removedEdges, suggestions.Count));
     }
 
     private async Task<Briefing> BriefingAsync(

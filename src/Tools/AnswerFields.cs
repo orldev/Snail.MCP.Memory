@@ -207,6 +207,24 @@ public static class AnswerFields
         ["edges"] = renamed.Edges,
     };
 
+    /// <summary><c>forget_project</c>: whether the project is gone, what went or would go, and what to do with an unconfirmed count.</summary>
+    public static JsonObject Of(ProjectForgotten forgotten)
+    {
+        var data = new JsonObject
+        {
+            ["project"] = forgotten.Project,
+            ["deleted"] = forgotten.IsDeleted,
+            ["records"] = forgotten.Records,
+            ["edges"] = forgotten.Edges,
+            ["suggestions"] = forgotten.Suggestions,
+        };
+
+        if (!forgotten.IsDeleted)
+            data["note"] = Messages.ProjectForgetUnconfirmed(forgotten.Project);
+
+        return data;
+    }
+
     /// <summary><c>link_projects</c>: the edge, whether it is new, the suggestions it settled.</summary>
     public static JsonObject Of(Linked linked)
     {

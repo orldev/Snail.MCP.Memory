@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Snail.MCP.Memory.Host.Hosting;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.Sdk.Mcp.Hosting;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Memory.Host.Extensions;
@@ -13,18 +14,20 @@ public static class ServiceCollectionExtensions
     extension(IServiceCollection services)
     {
         /// <summary>Registers the background audit unless it is switched off — see <see cref="AuditWorker"/>.</summary>
+        /// <remarks>The worker is a singleton as well as a hosted service, so the idle shutdown can ask it whether it is at work (<see cref="AuditWorker.IsAuditing"/>).</remarks>
         public IServiceCollection AddAuditWorker(StorageOptions options)
         {
             if (!options.IsAuditEnabled())
                 return services;
 
-            services.AddHostedService(sp => new AuditWorker(
+            services.AddSingleton(sp => new AuditWorker(
                 sp.GetRequiredService<IAuditStore>(),
                 sp.GetRequiredService<Application.MentionAudit>(),
                 sp.GetRequiredService<TimeProvider>(),
                 sp.GetRequiredService<ILogger<AuditWorker>>(),
                 options.ResolveAuditInterval(),
                 AuditWorker.DefaultCheckPeriod));
+            services.AddHostedService(sp => sp.GetRequiredService<AuditWorker>());
 
             return services;
         }
@@ -51,10 +54,16 @@ public static class ServiceCollectionExtensions
         }
 
         /// <summary>The server with every tool of the assembly, a tool that throws answered in the envelope as every answer is.</summary>
+        /// <remarks>
+        /// A session opened at <c>/mcp?tool=recall&amp;tool=remember</c> is granted those tools alone: the rest are left out
+        /// of its list and refused as <c>notGranted</c> — a role that may read and write the memory but never
+        /// <c>forget_project</c>. An address that names no tool, and every session over stdio, is granted them all.
+        /// </remarks>
         private IMcpServerBuilder AddMemoryServer() =>
             services
                 .AddMcpServer(server => server.ServerInfo = ServerIdentity.Of(typeof(ServiceCollectionExtensions).Assembly))
                 .ExplainFailures()
+                .WithSessionGrant()
                 .WithToolsFromAssembly();
     }
 }
