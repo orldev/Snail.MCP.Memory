@@ -17,4 +17,4 @@ Use MCP tools exclusively — no bash, no reading files. Answer with one line an
 
 "Recorded [kind] (id ...)." — the kind and id of the answer's `data`.
 
-If the server refused because of a similar record and you stopped, say what exists instead.
+If the server refused because of a similar record and you stopped, say what exists instead. Any other answer with `"ok":false` has no record in its `data`: print its `error` verbatim instead.
