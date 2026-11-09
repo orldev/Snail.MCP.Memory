@@ -177,6 +177,7 @@ You normally never call these yourself — the agent does, guided by the tool de
 | `review_memory` | nominates stale records for deletion; the deletion itself stays a confirmed `forget` |
 | `list_projects` | the projects that have memory, optionally narrowed by a name `prefix` |
 | `rename_project` | renames a project everywhere: registry, records, edges |
+| `forget_project` | forgets a whole project — records, edges, link suggestions, registration — in two calls: without `confirm` it only counts what would go, with `confirm: true` it deletes |
 | `link_projects` | a directed, typed edge between projects: `uses`, `depends_on`, `design_of`, `part_of`, `implements`, `documents` |
 | `unlink_projects` | removes the edges of a project pair |
 | `dismiss_link` | rejects a pending link suggestion so the pair is never proposed again |
@@ -208,7 +209,9 @@ The refusal kinds are `emptyName`, `unresolvedName`, `notFound`, `nameTaken`, `i
 
 ### Pending link suggestions
 
-A record that mentions a known project with no edge to its own queues a **pending link suggestion**. The queue returns with every project-scoped `recall` and with `init_project_memory` until each pair is resolved: `link_projects` confirms the relation, `dismiss_link` rejects it permanently — there is no third state, so conceptual relations named in conversation stop getting lost.
+A record that mentions a known project with no edge to its own queues a **pending link suggestion**. A mention is the
+project's name as a whole word; a name of one or two letters (`UI`) is never matched, nor the user folder of a home
+path (`/Users/<name>/`, `/home/<name>/`). The queue returns with every project-scoped `recall` and with `init_project_memory` until each pair is resolved: `link_projects` confirms the relation, `dismiss_link` rejects it permanently — there is no third state, so conceptual relations named in conversation stop getting lost.
 
 A **background audit** completes the picture: once per interval (`AUDIT_INTERVAL_DAYS`, default 7, `0` disables) the server re-scans all records and queues suggestions the write-time scan could not see — for example a mention written before the mentioned project had memory. However many agents share one database, the audit runs once per interval: every server process wakes hourly, and the run goes to whichever first claims an atomic lease stored in the database.
 
@@ -246,7 +249,12 @@ Settings other than the transport go into `~/.config/s3l-mcp-memory/config.json`
 name asks the client for the folder it works in (MCP roots), since the server's own folder is nobody's project. The
 endpoint has no key: it listens on loopback and nowhere else — a `URL` beyond loopback, `LISTENS_ON_EVERY_INTERFACE=true`
 or a start inside a container is refused at the start, naming the variable — and refuses any request that carries an
-`Origin`, which every browser page sends and no agent client does.
+`Origin`, which every browser page sends and no agent client does. `GET /healthz` answers 200 while the server is up.
+
+A client may be given some of the tools by the address it opens its session at:
+`http://127.0.0.1:9230/mcp?tool=recall&tool=remember` lists those two alone and refuses any other as `notGranted` — an
+agent that may read and write the memory but never `forget` or `forget_project`. An address that names no tool is
+given them all.
 
 ## Sharing one database
 
@@ -272,8 +280,8 @@ Nothing else changes — same tools, same behavior, tables and vector indexes ar
 
 - **Language**: record content is stored in the language of your conversation; the embedding model is multilingual, so search works across languages.
 - **Offline**: after the one-time model download the server needs no network at all.
-- **Lifecycle**: `event` records expire after 90 days; durable kinds are only ever deleted by an explicit, confirmed `forget`.
-- **Housekeeping**: an orphaned stdio server process shuts itself down after an hour without an MCP message (`IDLE_TIMEOUT_MINUTES`).
+- **Lifecycle**: `event` records expire after 90 days; durable kinds are only ever deleted by an explicit, confirmed `forget`, and a whole project by a confirmed `forget_project`.
+- **Housekeeping**: an orphaned stdio server process shuts itself down after an hour without an MCP message (`IDLE_TIMEOUT_MINUTES`), never in the middle of a background audit.
 - **Memory when idle**: the embedding model is most of what the server holds; after half an hour without an embedding it is released (~150 MB back, 321 → 173 MB measured), and the next semantic call loads it again in ~0.4 s (`EMBEDDING_IDLE_MINUTES`). The server logs both on stderr.
 - **Your data** is yours: one SQLite file at `~/.s3l-mcp-memory/memory.db`, inspectable with any SQLite browser.
 
