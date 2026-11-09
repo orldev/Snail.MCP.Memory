@@ -3,6 +3,7 @@ using Snail.MCP.Memory.Host.Extensions;
 using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Infrastructure.Embeddings;
 using Snail.MCP.Memory.Tests.TestDoubles;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -54,6 +55,31 @@ public sealed class StorageRegistrationTests : IDisposable
         Assert.IsType<VectorRecordStore>(sp.GetRequiredService<IRecordStore>());
         Assert.IsType<EfProjectStore>(sp.GetRequiredService<IProjectStore>());
         Assert.IsType<EfGraphStore>(sp.GetRequiredService<IGraphStore>());
+    }
+
+    /// A provider bound from a number no provider has was refused with a bare InvalidOperationException while the
+    /// services were registered, outside the refusal of the start, and the program crashed with a trace.
+    [Fact]
+    public void UnknownProvider_IsRefusedNamingTheVariable()
+    {
+        var refusal = Assert.Throws<StartRefusedException>(() => Build(o => o.Provider = (Provider)5));
+
+        Assert.StartsWith("SNAIL_MCP_MEMORY_PROVIDER (or Provider in the settings file) is '5'", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("Sqlite, Postgres", refusal.Message, StringComparison.Ordinal);
+    }
+
+    /// The same provider as the program meets it: one line naming the variable and exit code 1, not a trace and 134.
+    [Fact]
+    public async Task Program_UnknownProvider_ExitsNamingTheVariable()
+    {
+        var environment = new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_PROVIDER"] = "5" };
+
+        var exited = await Assert.ThrowsAsync<ServerExitedException>(() => ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment));
+
+        Assert.Equal(1, exited.ExitCode);
+        Assert.StartsWith("SNAIL_MCP_MEMORY_PROVIDER (or Provider in the settings file) is '5'", exited.Stderr.Trim(), StringComparison.Ordinal);
+        Assert.Single(exited.Stderr.Trim().Split('\n'));
+        Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
     }
 
     [Fact]
