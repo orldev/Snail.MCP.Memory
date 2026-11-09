@@ -72,13 +72,11 @@ public sealed class StorageRegistrationTests : IDisposable
     [Fact]
     public async Task Program_UnknownProvider_ExitsNamingTheVariable()
     {
-        var environment = new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_PROVIDER"] = "5" };
+        var exited = await RefusedStart.RunAsync(new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_PROVIDER"] = "5" });
 
-        var exited = await Assert.ThrowsAsync<ServerExitedException>(() => ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment));
-
-        Assert.Equal(1, exited.ExitCode);
-        Assert.StartsWith("SNAIL_MCP_MEMORY_PROVIDER (or Provider in the settings file) is '5'", exited.Stderr.Trim(), StringComparison.Ordinal);
-        Assert.Single(exited.Stderr.Trim().Split('\n'));
+        Assert.Equal(1, exited.Code);
+        Assert.StartsWith("SNAIL_MCP_MEMORY_PROVIDER (or Provider in the settings file) is '5'", exited.Stderr, StringComparison.Ordinal);
+        Assert.Single(exited.Stderr.Split('\n'));
         Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
     }
 

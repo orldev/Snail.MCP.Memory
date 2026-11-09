@@ -1,6 +1,7 @@
 using System.Collections;
 using Microsoft.Extensions.Configuration;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.MCP.Memory.Tests.TestDoubles;
 using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Tests.Infrastructure;
@@ -35,7 +36,9 @@ public sealed class StorageOptionsTests
     {
         var options = new StorageOptions { Provider = Provider.Postgres };
 
-        Assert.Throws<InvalidOperationException>(options.ResolveConnectionString);
+        var refusal = Assert.Throws<StartRefusedException>(options.ResolveConnectionString);
+
+        Assert.StartsWith("SNAIL_MCP_MEMORY_CONNECTION_STRING (or ConnectionString in the settings file) is empty", refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,10 +210,11 @@ public sealed class StorageOptionsTests
     [Fact]
     public void Endpoint_FromTheSameSettings_IsStdioOrTheConfiguredHttpAddress()
     {
-        var unset = McpEndpoint.Read(Settings(new Hashtable()), StorageOptions.DefaultUrl);
+        var unset = McpEndpoint.Read(Settings(new Hashtable()), StorageOptions.DefaultUrl, StorageOptions.EndpointOptions);
         var http = McpEndpoint.Read(
             Settings(new Hashtable { ["SNAIL_MCP_MEMORY_TRANSPORT"] = "Http", ["SNAIL_MCP_MEMORY_URL"] = "http://127.0.0.1:9231/" }),
-            StorageOptions.DefaultUrl);
+            StorageOptions.DefaultUrl,
+            StorageOptions.EndpointOptions);
 
         Assert.Equal(McpTransport.Stdio, unset.Transport);
         Assert.Equal(new Uri("http://127.0.0.1:9230"), unset.Url);
@@ -219,19 +223,29 @@ public sealed class StorageOptionsTests
         Assert.False(http.ListensOnEveryInterface);
     }
 
+    /// PostgreSQL without a connection string was refused while the services were registered, outside the refusal of
+    /// the start, and crashed with a trace and exit code 134; it names the variable in one line and exits with 1.
+    [Fact]
+    public async Task Program_PostgresWithoutAConnectionString_ExitsNamingTheVariable()
+    {
+        var exited = await RefusedStart.RunAsync(new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_PROVIDER"] = "Postgres" });
+
+        Assert.Equal(1, exited.Code);
+        Assert.StartsWith("SNAIL_MCP_MEMORY_CONNECTION_STRING (or ConnectionString in the settings file) is empty", exited.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
+    }
+
     /// The program bound a word for a number before its host existed and crashed with the binder's trace and exit
     /// code 134; it names the variable in one line and exits with 1.
     [Fact]
     public async Task Program_SettingOfTheWrongType_ExitsNamingTheVariable()
     {
-        var environment = new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"] = "abc" };
+        var exited = await RefusedStart.RunAsync(new Dictionary<string, string?> { ["SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES"] = "abc" });
 
-        var exited = await Assert.ThrowsAsync<ServerExitedException>(() => ServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment));
-
-        Assert.Equal(1, exited.ExitCode);
+        Assert.Equal(1, exited.Code);
         Assert.Equal(
             "SNAIL_MCP_MEMORY_IDLE_TIMEOUT_MINUTES (or IdleTimeoutMinutes in the settings file) is 'abc'; it is not a number (Int32).",
-            exited.Stderr.Trim());
+            exited.Stderr);
         Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
     }
 
