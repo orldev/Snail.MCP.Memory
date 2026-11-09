@@ -9,6 +9,7 @@ using Snail.MCP.Memory.Infrastructure.Configuration;
 using Snail.MCP.Memory.Infrastructure.Embeddings;
 using Snail.MCP.Memory.Infrastructure.Persistence;
 using Snail.MCP.Memory.Infrastructure.Stores;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Host.Extensions;
 
@@ -92,12 +93,18 @@ public static class StorageServiceCollectionExtensions
             return services;
         }
 
+        /// <remarks>
+        /// A number binds to the enum whether or not a provider has it (<c>SNAIL_MCP_MEMORY_PROVIDER=5</c>), and it is met
+        /// here, while the services are registered and before any host exists: a bare exception ended the program with a
+        /// trace and exit code 134.
+        /// </remarks>
+        /// <exception cref="StartRefusedException">The provider is none of <see cref="Provider"/>.</exception>
         private IServiceCollection AddProvider(StorageOptions options) => options.Provider switch
         {
             Provider.Sqlite => services.AddSqliteStorage(options),
             Provider.Postgres => services.AddPostgresStorage(options),
-            _ => throw new InvalidOperationException(
-                $"Unknown storage provider '{options.Provider}'. Allowed: {string.Join(", ", Enum.GetNames<Provider>())}.")
+            _ => throw new StartRefusedException(
+                $"{ServerSettings.NameOfSetting(StorageOptions.ServerName, nameof(StorageOptions.Provider))} is '{options.Provider}'; the providers are {string.Join(", ", Enum.GetNames<Provider>())}.")
         };
 
         /// <summary>SQLite with sqlite-vec: records, projects and edges in one database file.</summary>
