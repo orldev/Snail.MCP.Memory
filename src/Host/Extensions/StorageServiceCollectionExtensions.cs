@@ -17,13 +17,22 @@ namespace Snail.MCP.Memory.Host.Extensions;
 /// <remarks>The stores are provider-neutral, so a provider is nothing but the two registrations in its <c>Add{Provider}Storage</c>.</remarks>
 public static class StorageServiceCollectionExtensions
 {
+    /// <summary>The logging category of Entity Framework Core.</summary>
+    internal const string EntityFrameworkCategory = "Microsoft.EntityFrameworkCore";
+
     extension(IServiceCollection services)
     {
-        /// <summary>Registers the embedder, the stores of the selected provider and the application services.</summary>
+        /// <summary>Registers the embedder, the stores of the selected provider and the application services, Entity Framework logging warnings and up.</summary>
+        /// <remarks>
+        /// Entity Framework writes every SQL command it runs at information: 15 017 of the 82 400 lines the shared server
+        /// wrote to its log from 14.10 to 09.11.2026, a log nobody rotates. An operator who wants the commands back names
+        /// the narrower category, <c>Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command</c>, which wins over this one.
+        /// </remarks>
         public IServiceCollection AddStorage(StorageOptions options)
         {
             services.AddSingleton(options);
             services.AddSingleton(TimeProvider.System);
+            services.AddLogging(logging => logging.AddFilter(EntityFrameworkCategory, LogLevel.Warning));
 
             return services
                 .AddEmbedder(options)

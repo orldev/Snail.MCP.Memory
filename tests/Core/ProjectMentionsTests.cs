@@ -30,4 +30,38 @@ public sealed class ProjectMentionsTests
         Assert.False(ProjectMentions.Mentions("some text", ""));
         Assert.False(ProjectMentions.Mentions("some text", "Keynex_App"));
     }
+
+    /// A project named UI was suggested as a link to every record that said "UI" — eighteen of them, none a mention.
+    [Theory]
+    [InlineData("Design and UI", "UI")]
+    [InlineData("v 2.0 ships", "v")]
+    public void Mentions_RefusesANameOfFewerThanThreeLetters(string text, string name)
+    {
+        Assert.False(ProjectMentions.Mentions(text, name));
+    }
+
+    [Fact]
+    public void Mentions_MatchesANameOfThreeLetters()
+    {
+        Assert.True(ProjectMentions.Mentions("the Pix bot", "Pix"));
+    }
+
+    /// The home folder is the person whose machine it is: every path under it named a project called orldev.
+    [Theory]
+    [InlineData("hooks in /Users/orldev/.claude/settings.json")]
+    [InlineData("see /home/orldev/projects")]
+    [InlineData(@"C:\Users\orldev\AppData")]
+    public void Mentions_RefusesTheUserFolderOfAHomePath(string text)
+    {
+        Assert.False(ProjectMentions.Mentions(text, "orldev"));
+    }
+
+    /// Only the user folder is refused: a project's own folder in a path, or the name in prose, still counts.
+    [Theory]
+    [InlineData("/Users/orldev/Projects/Snail.MCP.Figma/src", "Snail.MCP.Figma")]
+    [InlineData("orldev wrote it, see /Users/orldev/x", "orldev")]
+    public void Mentions_MatchesANameOutsideTheUserFolder(string text, string name)
+    {
+        Assert.True(ProjectMentions.Mentions(text, name));
+    }
 }

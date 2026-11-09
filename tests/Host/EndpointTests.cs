@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.MCP.Memory.Tests.TestDoubles;
 using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Memory.Tests.Host;
@@ -52,38 +52,16 @@ public sealed class EndpointTests
     [Fact]
     public async Task Program_ToldToListenOnEveryInterface_ExitsNamingTheVariable()
     {
-        var dataDirectory = TestFolder.Create();
-        var (command, arguments) = ServerProgram.Command("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER");
-        var start = new ProcessStartInfo { FileName = command, RedirectStandardError = true, RedirectStandardOutput = true };
-
-        foreach (var argument in arguments)
-            start.ArgumentList.Add(argument);
-        start.Environment["SNAIL_MCP_MEMORY_DIRECTORY"] = dataDirectory;
-        start.Environment["SNAIL_MCP_MEMORY_TRANSPORT"] = "Http";
-        start.Environment["SNAIL_MCP_MEMORY_PORT"] = Ports.Free().ToString(System.Globalization.CultureInfo.InvariantCulture);
-        start.Environment["SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE"] = "true";
-        start.Environment[ServerSettings.FileVariableOf(StorageOptions.ServerName)] = ServerProgram.NoSettingsFile;
-        start.Environment["HOME"] = ServerProgram.Home;
-        start.Environment["USERPROFILE"] = ServerProgram.Home;
-
-        try
+        var exited = await RefusedStart.RunAsync(new Dictionary<string, string?>
         {
-            using var process = Process.Start(start)!;
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
+            ["SNAIL_MCP_MEMORY_TRANSPORT"] = "Http",
+            ["SNAIL_MCP_MEMORY_PORT"] = Ports.Free().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE"] = "true",
+        });
 
-            await process.WaitForExitAsync(deadline.Token);
-
-            var error = await stderr;
-
-            Assert.Equal(1, process.ExitCode);
-            Assert.Contains("SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE", error, StringComparison.Ordinal);
-            Assert.DoesNotContain("   at ", error, StringComparison.Ordinal);
-        }
-        finally
-        {
-            Directory.Delete(dataDirectory, recursive: true);
-        }
+        Assert.Equal(1, exited.Code);
+        Assert.Contains("SNAIL_MCP_MEMORY_LISTENS_ON_EVERY_INTERFACE", exited.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", exited.Stderr, StringComparison.Ordinal);
     }
 
     private static McpEndpoint Read(Dictionary<string, string?> settings) =>

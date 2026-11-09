@@ -107,17 +107,17 @@ public sealed class KnowledgeGraphTests : IDisposable
     [Fact]
     public async Task ProposeMentions_QueuesOnlyUnlinkedRegisteredProjects()
     {
-        await Register("A", "B", "C");
-        await _service.LinkAsync("A", "C", LinkTypes.Uses);
+        await Register("Alpha", "Beta", "Gamma");
+        await _service.LinkAsync("Alpha", "Gamma", LinkTypes.Uses);
 
         var proposed = await _service.ProposeMentionsAsync(
-            "A", "A talks to B and C, and to the unknown D", "some record", CancellationToken.None);
+            "Alpha", "Alpha talks to Beta and Gamma, and to the unknown Delta", "some record", CancellationToken.None);
 
         var link = Assert.Single(proposed);
 
-        Assert.Equal("B", link.Other);
+        Assert.Equal("Beta", link.Other);
         Assert.Equal("some record", link.Evidence);
-        Assert.Single(await _harness.Pending.ListAsync("a"));
+        Assert.Single(await _harness.Pending.ListAsync("alpha"));
     }
 
     /// Sync writes auto edges and resolves the pair's suggestion; a target without memory is

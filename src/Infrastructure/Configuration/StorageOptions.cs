@@ -149,12 +149,17 @@ public sealed class StorageOptions
     public string ResolveDirectory() => ServerFolders.FullPath(Directory, ServerFolders.DataDirectory(ServerName));
 
     /// <summary>Full connection string: SQLite wraps a bare path into <c>Data Source=</c>; PostgreSQL requires the configured string.</summary>
+    /// <remarks>
+    /// Resolved while the services are registered, before any host exists: a bare exception there ended the program
+    /// with a trace and exit code 134, where the operator had only left a setting out.
+    /// </remarks>
+    /// <exception cref="StartRefusedException">The provider is PostgreSQL and no connection string is set.</exception>
     public string ResolveConnectionString()
     {
         if (Provider == Provider.Postgres)
             return string.IsNullOrWhiteSpace(ConnectionString)
-                ? throw new InvalidOperationException(
-                    "Provider=Postgres requires ConnectionString (e.g. 'Host=...;Database=...;Username=...;Password=...').")
+                ? throw new StartRefusedException(
+                    $"{ServerSettings.NameOfSetting(ServerName, nameof(ConnectionString))} is empty; Provider=Postgres needs one, such as 'Host=...;Database=...;Username=...;Password=...'.")
                 : ConnectionString.Trim();
 
         if (string.IsNullOrWhiteSpace(ConnectionString))
