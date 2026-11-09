@@ -87,4 +87,22 @@ public sealed class AnswerFieldsTests : IDisposable
         Assert.Equal(Refusals.NotFound, link["type"]!.GetValue<string>());
         Assert.Equal(Messages.ProjectNotFound("Ghost"), link["error"]!.GetValue<string>());
     }
+
+    /// An unconfirmed count must read as a question, never as work done: it says it deleted nothing and what to do next.
+    [Fact]
+    public void ProjectForgotten_Unconfirmed_SaysNothingIsDeletedYet()
+    {
+        var fields = AnswerFields.Of(new ProjectForgotten("Gone", false, 2, 1, 0));
+
+        Assert.False(fields["deleted"]!.GetValue<bool>());
+        Assert.Equal(Messages.ProjectForgetUnconfirmed("Gone"), fields["note"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ProjectForgotten_Confirmed_CarriesNoNote()
+    {
+        var fields = AnswerFields.Of(new ProjectForgotten("Gone", true, 2, 1, 0));
+
+        Assert.Equal("""{"project":"Gone","deleted":true,"records":2,"edges":1,"suggestions":0}""", fields.ToJsonString());
+    }
 }

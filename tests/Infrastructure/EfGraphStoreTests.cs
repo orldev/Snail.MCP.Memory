@@ -71,6 +71,34 @@ public sealed class EfGraphStoreTests : IDisposable
         Assert.Equal(2, (await _store.GetForProjectsAsync(["new"])).Count);
     }
 
+    [Fact]
+    public async Task RemoveProject_RemovesTheEdgesTouchingItInEitherDirectionOnly()
+    {
+        await _store.TryInsertAsync(Edge("Gone", "B"));
+        await _store.TryInsertAsync(Edge("C", "Gone", LinkTypes.Documents));
+        await _store.TryInsertAsync(Edge("B", "C"));
+
+        Assert.Equal(2, await _store.RemoveProjectAsync("gone"));
+
+        var kept = Assert.Single(await _store.GetAllAsync());
+
+        Assert.Equal(("B", "C"), (kept.Source, kept.Target));
+    }
+
+    /// Forgetting a project in one workspace leaves the project of the same name in another one alone.
+    [Fact]
+    public async Task RemoveProject_StaysInsideItsWorkspace()
+    {
+        var alpha = _harness.GraphIn("alpha");
+        var beta = _harness.GraphIn("beta");
+
+        await alpha.TryInsertAsync(Edge("Gone", "B"));
+        await beta.TryInsertAsync(Edge("Gone", "B"));
+
+        Assert.Equal(1, await alpha.RemoveProjectAsync("gone"));
+        Assert.Single(await beta.GetAllAsync());
+    }
+
     /// Each partitioned store links inside its own workspace; the same pair may carry different
     /// edges in different workspaces, and the unpartitioned store sees them all.
     [Fact]

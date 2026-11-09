@@ -49,7 +49,20 @@ public static class ToolDescriptions
     /// <summary><c>forget</c>.</summary>
     public const string Forget =
         "Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk " +
-        "cleanups confirm the list with the user first — review_memory nominates candidates.";
+        "cleanups confirm the list with the user first — review_memory nominates candidates. A whole " +
+        "project goes with forget_project.";
+
+    /// <summary><c>forget_project</c>.</summary>
+    public const string ForgetProject =
+        "Forgets a whole project: every record, every graph edge touching it in either direction, its " +
+        "link suggestions (the dismissed ones too) and its registration. Permanent, so it takes two " +
+        "calls: without confirm it deletes nothing and answers the counts; show them to the user, and " +
+        "only once they agree call again with confirm: true. Only ever on the user's request — an " +
+        "outdated record is replaced or forgotten, never its project.";
+
+    /// <summary>Wording of the confirm parameter of forget_project.</summary>
+    public const string ConfirmParam =
+        "False — count what would be deleted and delete nothing. True — delete, after the user agreed to the counts.";
 
     /// <summary><c>review_memory</c>.</summary>
     public const string ReviewMemory =

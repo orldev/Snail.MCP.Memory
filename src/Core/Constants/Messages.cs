@@ -51,6 +51,10 @@ public static class Messages
     /// <summary>What to do about a name another project has.</summary>
     public const string RenameTargetTakenHint = "choose a name no project has";
 
+    /// <summary>An unconfirmed forget_project: nothing is gone yet.</summary>
+    public static string ProjectForgetUnconfirmed(string project) =>
+        $"nothing is deleted yet: show the user these counts, and call forget_project for '{project}' with confirm: true only once they agree";
+
     /// <summary>Both projects are required.</summary>
     public const string BothProjectsRequired = "Both projects are required.";
 

@@ -148,4 +148,71 @@ public sealed class ProjectRegistryTests : IDisposable
         Assert.Equal(("myproject", "MyProject"), (answer.Value!.From, answer.Value.To));
         Assert.Equal("MyProject", (await _harness.Projects.GetAsync("myproject"))!.Name);
     }
+
+    /// The first call is the question put to the user: it counts and deletes nothing.
+    [Fact]
+    public async Task Forget_Unconfirmed_CountsWhatWouldGoAndDeletesNothing()
+    {
+        await GoneWithNeighboursAsync();
+
+        var answer = await _service.ForgetAsync("gone", isConfirmed: false);
+
+        Assert.Equal(new ProjectForgotten("Gone", false, 2, 1, 1), answer.Value);
+        Assert.NotNull(await _harness.Projects.GetAsync("gone"));
+        Assert.Equal(2, (await _harness.Records.ListAsync(new RecordFilter("gone"), 10)).Count);
+    }
+
+    [Fact]
+    public async Task Forget_Confirmed_RemovesRegistryRecordsEdgesAndSuggestions()
+    {
+        await GoneWithNeighboursAsync();
+
+        var answer = await _service.ForgetAsync("Gone", isConfirmed: true);
+
+        Assert.Equal(new ProjectForgotten("Gone", true, 2, 1, 1), answer.Value);
+        Assert.Null(await _harness.Projects.GetAsync("gone"));
+        Assert.Empty(await _harness.Records.ListAsync(new RecordFilter("gone"), 10));
+        Assert.Empty(await _harness.Graph.GetAllAsync());
+        Assert.Empty(await _harness.Pending.ListAsync());
+    }
+
+    [Fact]
+    public async Task Forget_LeavesTheNeighboursTheirOwnMemory()
+    {
+        await GoneWithNeighboursAsync();
+
+        await _service.ForgetAsync("Gone", isConfirmed: true);
+
+        Assert.NotNull(await _harness.Projects.GetAsync("other"));
+        Assert.Single(await _harness.Records.ListAsync(new RecordFilter("other"), 10));
+    }
+
+    /// Records written before a project was registered still name it; forgetting it must not leave them behind.
+    [Fact]
+    public async Task Forget_AProjectKnownOnlyByItsRecords_IsForgottenToo()
+    {
+        await _memory.RememberAsync("Unregistered", "knowledge");
+        await _harness.Projects.TryDeleteAsync("unregistered");
+
+        var answer = await _service.ForgetAsync("Unregistered", isConfirmed: true);
+
+        Assert.Equal(1, answer.Value!.Records);
+        Assert.Empty(await _harness.Records.ListAsync(new RecordFilter("unregistered"), 10));
+    }
+
+    [Fact]
+    public async Task Forget_RefusesAnEmptyNameAndAProjectNothingKnows()
+    {
+        Refused.As(Refusals.EmptyName, Messages.ProjectNameEmpty, await _service.ForgetAsync("  ", isConfirmed: true));
+        Refused.As(Refusals.NotFound, Messages.ProjectNotFound("Ghost"), await _service.ForgetAsync("Ghost", isConfirmed: true));
+    }
+
+    private async Task GoneWithNeighboursAsync()
+    {
+        await _memory.RememberAsync("Gone", "first lesson of the gone project");
+        await _memory.RememberAsync("Gone", "second decision about something else entirely");
+        await _memory.RememberAsync("Other", "the neighbour keeps its own knowledge");
+        await _harness.Graph.TryInsertAsync(new GraphEdge("Gone", "Other", LinkTypes.Uses, "", _harness.Time.GetUtcNow()));
+        await _harness.Pending.TryProposeAsync(new PendingLink("Other", "Gone", "", _harness.Time.GetUtcNow()));
+    }
 }

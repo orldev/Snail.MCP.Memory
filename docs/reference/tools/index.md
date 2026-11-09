@@ -1,6 +1,6 @@
 # Tools
 
-12 tools in 2 families.
+13 tools in 2 families.
 The names, descriptions and schemas are generated from the server itself, so they are exactly what the model receives in `tools/list`.
 
 Long-term memory for an AI agent: records of decisions, lessons and preferences searched by meaning, per project and across projects, and a directed knowledge graph between projects. Everything runs on the machine — a single SQLite file and an in-process embedding model by default; the same server speaks PostgreSQL.
@@ -14,6 +14,7 @@ Long-term memory for an AI agent: records of decisions, lessons and preferences 
 | [`forget`](memory.md#forget) | Projects and their records | Deletes records by id (several ids comma-separated). |
 | [`review_memory`](memory.md#review_memory) | Projects and their records | Lists deletion candidates: durable records that recall has never returned and that grew old, plus tasks untouched for as long. |
 | [`rename_project`](memory.md#rename_project) | Projects and their records | Renames a project everywhere: the registry, every record, every graph edge. |
+| [`forget_project`](memory.md#forget_project) | Projects and their records | Forgets a whole project: every record, every graph edge touching it in either direction, its link suggestions (the dismissed ones too) and its registration. |
 | [`link_projects`](graph.md#link_projects) | The knowledge graph between projects | Creates or updates a directed, typed edge between two projects. |
 | [`dismiss_link`](graph.md#dismiss_link) | The knowledge graph between projects | Rejects a pending link suggestion: the pair stops being proposed, permanently. |
 | [`unlink_projects`](graph.md#unlink_projects) | The knowledge graph between projects | Removes edges between two projects regardless of direction. |

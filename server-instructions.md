@@ -12,7 +12,7 @@ PENDING. A record mentioning a known but unlinked project queues a suggestion; i
 
 ANSWERS. Every answer is JSON with an ok flag: data on success; on ok false read error and hint, type names the refusal (notFound, duplicate, invalidId, …) — change the call instead of repeating it.
 
-LIFECYCLE. Only event expires by itself. review_memory nominates stale records; confirm with the user, then forget. Deletion is permanent.
+LIFECYCLE. Only event expires by itself. review_memory nominates stale records; confirm with the user, then forget. Deletion is permanent. A whole project — records, edges, suggestions, registration — goes only on the user's request, in two calls: forget_project counts and deletes nothing; show the counts, and call again with confirm: true once they agree.
 
 NAMES. A project is named after its root folder; init_project_memory without a name resolves it and refuses generic folders (design, projects, work, src). Unsure of a name — list_projects, do not guess. rename_project renames everywhere.
 

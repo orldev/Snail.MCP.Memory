@@ -220,7 +220,7 @@ Searches memory by meaning. Call it before proposing an architecture, a stack or
 
 ## <code>forget</code>
 
-Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk cleanups confirm the list with the user first — review_memory nominates candidates.
+Deletes records by id (several ids comma-separated). Deletion is permanent; for bulk cleanups confirm the list with the user first — review_memory nominates candidates. A whole project goes with forget_project.
 
 *may overwrite or delete · every call adds · stays on this machine.*
 
@@ -303,6 +303,41 @@ Renames a project everywhere: the registry, every record, every graph edge. The 
   "required": [
     "oldName",
     "newName"
+  ]
+}
+```
+
+</details>
+
+## <code>forget_<wbr>project</code>
+
+Forgets a whole project: every record, every graph edge touching it in either direction, its link suggestions (the dismissed ones too) and its registration. Permanent, so it takes two calls: without confirm it deletes nothing and answers the counts; show them to the user, and only once they agree call again with confirm: true. Only ever on the user's request — an outdated record is replaced or forgotten, never its project.
+
+*may overwrite or delete · every call adds · stays on this machine.*
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `projectName` | `string` | yes | — | Project name — the identifier the memory was created with. Case-insensitive. |
+| `confirm` | `boolean` | — | `false` | False — count what would be deleted and delete nothing. True — delete, after the user agreed to the counts. |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "projectName": {
+      "description": "Project name \u2014 the identifier the memory was created with. Case-insensitive.",
+      "type": "string"
+    },
+    "confirm": {
+      "description": "False \u2014 count what would be deleted and delete nothing. True \u2014 delete, after the user agreed to the counts.",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "projectName"
   ]
 }
 ```

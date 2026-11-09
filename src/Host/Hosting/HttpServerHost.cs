@@ -15,8 +15,8 @@ namespace Snail.MCP.Memory.Host.Hosting;
 /// </para>
 /// <para>
 /// The address — <c>Transport</c>, <c>Url</c> or <c>Port</c>, on loopback alone (<see cref="StorageOptions.EndpointOptions"/>) — is
-/// read by <see cref="McpEndpoint.Read(IConfiguration, Uri, McpEndpointOptions)"/>; the host and the refusal of browsers
-/// are Snail.Sdk.Mcp.Http's, see <see cref="McpHttpHost"/>.
+/// read by <see cref="McpEndpoint.Read(IConfiguration, Uri, McpEndpointOptions)"/>; the host, the refusal of browsers and
+/// <c>GET /healthz</c>, 200 with no body for whatever checks the server is up, are Snail.Sdk.Mcp.Http's, see <see cref="McpHttpHost"/>.
 /// </para>
 /// <para>Kept apart from <c>Program</c> so that a stdio server never loads ASP.NET Core.</para>
 /// </remarks>
@@ -35,6 +35,7 @@ public static class HttpServerHost
         var app = builder.Build();
 
         app.MapLocalMcp();
+        app.MapHealth();
 
         return app.RunAsync();
     }

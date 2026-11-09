@@ -82,6 +82,22 @@ public sealed class EfPendingLinkStoreTests : IDisposable
         Assert.All(open, link => Assert.Contains("Alpha", new[] { link.Project, link.Other }));
     }
 
+    /// A project forgotten whole takes its dismissals with it: a project created later under the same name starts with none.
+    [Fact]
+    public async Task RemoveProject_RemovesItsOpenAndDismissedSuggestionsOnly()
+    {
+        await _harness.Pending.TryProposeAsync(Suggestion());
+        await _harness.Pending.DismissAsync("C", "A", _harness.Time.GetUtcNow());
+        await _harness.Pending.TryProposeAsync(Suggestion(project: "B", other: "C"));
+
+        Assert.Equal(2, await _harness.Pending.RemoveProjectAsync("a"));
+
+        var kept = Assert.Single(await _harness.Pending.ListAsync());
+
+        Assert.Equal(("B", "C"), (kept.Project, kept.Other));
+        Assert.True(await _harness.Pending.TryProposeAsync(Suggestion(project: "C", other: "A")));
+    }
+
     /// Two workspaces over one database never see each other's suggestions; the empty
     /// workspace reads the whole base.
     [Fact]

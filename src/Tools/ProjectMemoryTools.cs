@@ -98,4 +98,13 @@ public static class ProjectMemoryTools
         [Description("Current name of the project.")] string oldName,
         [Description("New name of the project.")] string newName) =>
         ToolAnswer.From(await service.RenameAsync(oldName, newName, cancellationToken), AnswerFields.Of);
+
+    /// <summary>Forgets a project whole, or counts what that deletes.</summary>
+    [McpServerTool(Name = "forget_project", ReadOnly = false, Destructive = true), Description(ToolDescriptions.ForgetProject)]
+    public static async Task<CallToolResult> ForgetProjectAsync(
+        ProjectRegistry service,
+        CancellationToken cancellationToken,
+        [Description(ToolDescriptions.ProjectNameParam)] string projectName,
+        [Description(ToolDescriptions.ConfirmParam)] bool confirm = false) =>
+        ToolAnswer.From(await service.ForgetAsync(projectName, confirm, cancellationToken), AnswerFields.Of);
 }

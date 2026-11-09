@@ -1,7 +1,9 @@
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Memory.Infrastructure.Configuration;
+using Snail.MCP.Memory.Tests.TestDoubles;
 using Snail.Sdk.Mcp.Hosting;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Memory.Tests.Host;
 
@@ -19,7 +21,7 @@ public sealed class HttpContractTests : IAsyncLifetime
 
     /// <summary>
     /// The build beside the tests, or the one SNAIL_MEMORY_SERVER names, told HTTP and its address by HttpServerProgram,
-    /// with its own home and data folder, no model and no audit; ready once its MCP endpoint answers, since it maps no /healthz.
+    /// with its own home and data folder, no model and no audit; ready once its /healthz answers, as launchd's check reads it.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -30,7 +32,7 @@ public sealed class HttpContractTests : IAsyncLifetime
             [Prefix + "AUDIT_INTERVAL_DAYS"] = "0",
         };
 
-        _server = await HttpServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment, readiness: null);
+        _server = await HttpServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment);
     }
 
     public async Task DisposeAsync()
@@ -86,10 +88,44 @@ public sealed class HttpContractTests : IAsyncLifetime
         Assert.NotNull(answer.Hint());
     }
 
+    /// <summary>A role given a few tools by its address sees those alone, and a call to any other is refused, never served.</summary>
+    [Fact]
+    public async Task ASessionGrantedSomeTools_SeesAndCallsThoseAlone()
+    {
+        using var cancellation = new CancellationTokenSource(Timeout);
+        await using var reader = await _server.SessionAsync("tool=recall&tool=list_projects", cancellationToken: cancellation.Token);
+
+        var listed = await reader.ListToolsAsync(cancellationToken: cancellation.Token);
+        var refused = await reader.CallToolAsync(
+            "forget_project", new Dictionary<string, object?> { ["projectName"] = "HttpProbe", ["confirm"] = true }, cancellationToken: cancellation.Token);
+
+        Assert.Equal(["list_projects", "recall"], listed.Select(tool => tool.Name).Order(StringComparer.Ordinal));
+        Assert.True(refused.IsError);
+        Assert.Equal(GrantOptions.NotGranted, refused.Type());
+    }
+
     /// <summary>A page in a browser always sends Origin and an agent's client never does: no web page may reach the server.</summary>
     [Fact]
     public async Task ARequestFromABrowserIsRefused() =>
         Assert.Empty(await HttpGuards.ProblemsAsync(_server.Endpoint));
+
+    /// <summary>Inside a container the port is opened on every interface, and an endpoint without a key may not be: the start is refused in one line.</summary>
+    [Fact]
+    public async Task InsideAContainer_TheStartIsRefusedInOneLine()
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            [Prefix + "DIRECTORY"] = _dataDirectory,
+            [OutsideAContainer.Variable] = "true",
+        };
+
+        var refused = await Assert.ThrowsAsync<ServerExitedException>(() =>
+            HttpServerProgram.StartAsync("Snail.MCP.Memory", "SNAIL_MEMORY_SERVER", environment));
+
+        Assert.Equal(1, refused.ExitCode);
+        Assert.StartsWith("DOTNET_RUNNING_IN_CONTAINER is 'true'", refused.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', refused.Stderr.Trim());
+    }
 
     /// <summary>A client of the shared server, offering <paramref name="roots"/> as its folder when given.</summary>
     /// <remarks>

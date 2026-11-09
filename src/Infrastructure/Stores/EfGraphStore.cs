@@ -106,6 +106,16 @@ public sealed class EfGraphStore(MemoryDb database, string workspace) : IGraphSt
         return changed;
     }
 
+    /// <inheritdoc />
+    public async Task<int> RemoveProjectAsync(string projectKey, CancellationToken cancellationToken = default)
+    {
+        await using var context = await database.CreateAsync(cancellationToken);
+
+        return await Scoped(context)
+            .Where(row => row.SourceKey == projectKey || row.TargetKey == projectKey)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     private IQueryable<EdgeRow> Scoped(MemoryDbContext context) =>
         workspace.Length == 0 ? context.Edges : context.Edges.Where(row => row.Workspace == workspace);
 
