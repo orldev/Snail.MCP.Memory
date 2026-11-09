@@ -13,12 +13,10 @@
             mode string normalization leaves compatibility characters as they are, so the same text would embed differently.
         -->
         <InvariantGlobalization>false</InvariantGlobalization>
-        <!-- One server for every session, kept running by launchd: deploy/s3l.mcp.memory.plist, found by its name. -->
-<!--        <Version>0.1.1</Version>-->
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageVersion>0.2.0</PackageVersion>
+        <Version>0.2.0</Version>
         <Description>MCP server that gives AI agents universal long-term local memory: semantically searchable records (facts, decisions, lessons, tasks) per project plus a typed knowledge graph of directed relations. SQLite with sqlite-vec vector search, in-process ONNX embeddings (multilingual), cross-project experience transfer, record lifecycle with supersession and review.</Description>
         <PackageTags>mcp;mcp-server;modelcontextprotocol;ai;memory;knowledge-graph;vector-search;sqlite-vec;embeddings</PackageTags>
         <PackageProjectUrl>https://github.com/orldev/Snail.MCP.Memory</PackageProjectUrl>
